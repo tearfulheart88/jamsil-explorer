@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>%F0%9F%8F%98%EF%B8%8F</text></svg>">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잠실권 매수 탐색기</title>
+<script>
+// Use one canonical candidate experience. The former explorer remains available
+// only through the explicit ?legacy=1 escape hatch.
+(() => {
+  const params = new URLSearchParams(location.search);
+  if (params.get('legacy') !== '1') location.replace('workspace.html?mode=live#/explore');
+})();
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Nanum+Myeongjo:wght@700;800&display=swap">
+<style>
+:root{
+  --bg:#F3F4F6; --panel:#FFFFFF; --panel-2:#EAECF0; --line:#D5D9E0; --line-2:#C1C7D0;
+  --ink:#141B2D; --ink-2:#3C465A; --ink-3:#6B7588; --ink-4:#98A0B0;
+  --accent:#B8322F; --accent-ink:#FFFFFF; --accent-soft:#F6E3E1;
+  --apt:#2F5D8A; --villa:#C98A1B; --apt-soft:#DEE8F3; --villa-soft:#F7ECD3;
+  --ok:#2E7D5B; --ok-soft:#DDEFE6; --warn:#B26A00; --warn-soft:#F8ECD2; --bad:#A33A2B; --bad-soft:#F4DDD9;
+  --shadow:0 10px 30px rgba(20,27,45,.12);
+  --font-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --font-num:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --font-display:"Nanum Myeongjo","Apple Myungjo","Batang",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1420; --panel:#171D2B; --panel-2:#1F2637; --line:#2A3245; --line-2:#3A4358;
+    --ink:#ECEFF5; --ink-2:#C4CBD8; --ink-3:#8D97AB; --ink-4:#66708A;
+    --accent:#E0524E; --accent-ink:#FFFFFF; --accent-soft:#3A1F1F;
+    --apt:#7FAEDD; --villa:#E2B25A; --apt-soft:#1E2E42; --villa-soft:#3A2F16;
+    --ok:#5FBF93; --ok-soft:#1B3128; --warn:#E3A43B; --warn-soft:#3A2D14; --bad:#E07A6C; --bad-soft:#3E211D;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1420; --panel:#171D2B; --panel-2:#1F2637; --line:#2A3245; --line-2:#3A4358;
+  --ink:#ECEFF5; --ink-2:#C4CBD8; --ink-3:#8D97AB; --ink-4:#66708A;
+  --accent:#E0524E; --accent-ink:#FFFFFF; --accent-soft:#3A1F1F;
+  --apt:#7FAEDD; --villa:#E2B25A; --apt-soft:#1E2E42; --villa-soft:#3A2F16;
+  --ok:#5FBF93; --ok-soft:#1B3128; --warn:#E3A43B; --warn-soft:#3A2D14; --bad:#E07A6C; --bad-soft:#3E211D;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--apt)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+
+/* ── frame ── */
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:14px 20px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.brand .sub{color:var(--ink-3);font-size:12.5px}
+.top .meta{display:flex;gap:14px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.top .meta b{color:var(--ink);font-weight:600}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr) 380px;grid-template-rows:minmax(0,1fr);height:calc(100vh - 58px);min-height:560px}
+.rail,.list{background:var(--panel);overflow:auto}
+.rail{border-right:1px solid var(--line);padding:14px 16px 24px;display:flex;flex-direction:column;gap:18px}
+.list{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+@media (max-width:1180px){.app{grid-template-columns:270px minmax(0,1fr);grid-template-rows:minmax(0,1fr) 42vh;height:auto;min-height:100vh}.list{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
+/* 모바일: 조건 패널은 접어 두고, 지도 → 목록 순으로 세로 배치. 상세는 아래에서 올라오는 시트 */
+.railbar{display:none}
+@media (max-width:760px){
+  .top{padding:10px 14px 8px}.top .meta{display:none}.brand h1{font-size:18px}.brand .sub{font-size:11.5px}
+  /* 접힌 rail 은 display:none 이라 그리드 행을 차지하지 않는다 → 행 크기를 rail 에 기대지 말고 지도에 높이를 직접 준다 */
+  .app{display:flex;flex-direction:column;height:auto;min-height:100vh}
+  .mapwrap{height:46vh;min-height:300px;flex:none}
+  .railbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .railbar .btn{white-space:nowrap;flex:none}
+  .railbar b{font-family:var(--font-num);font-weight:500;color:var(--ink-2);font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rail{display:none;border-right:0;border-bottom:1px solid var(--line);max-height:70vh}
+  .rail.open{display:flex}
+  .list{border-left:0;border-top:1px solid var(--line);min-height:40vh}
+  .items{max-height:none}
+  .detail{position:fixed;left:0;right:0;bottom:0;max-height:78vh;border-top:1px solid var(--line-2);border-radius:14px 14px 0 0;box-shadow:0 -12px 32px rgba(0,0,0,.25);z-index:20;padding-bottom:28px}
+  .maptools{top:auto;bottom:64px}
+  .legend{display:none}
+  .mapnote{bottom:6px;right:6px}
+}
+
+/* ── rail ── */
+.sec h2{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px;font-weight:600}
+.field{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.field:last-child{border-bottom:0}
+.field label{color:var(--ink-2);font-size:13px}
+.field input[type=number],.field select{width:132px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;text-align:right;font-family:var(--font-num)}
+.field select{text-align:left;font-family:var(--font-ui)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line-2);background:var(--panel-2);border-radius:999px;padding:4px 10px;font-size:12.5px;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.chip.kind-apt[aria-pressed="true"]{background:var(--apt);border-color:var(--apt);color:#fff}
+.chip.kind-villa[aria-pressed="true"]{background:var(--villa);border-color:var(--villa);color:#fff}
+.range{display:grid;gap:4px}
+.range .lab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.range .rr{display:flex;align-items:center;gap:8px}
+.range .rr>span{font-size:11px;color:var(--ink-3);width:22px;flex:none;letter-spacing:.02em}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);padding:4px 0}
+.toggle input{accent-color:var(--accent)}
+.profile-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.btn{border:1px solid var(--line-2);background:var(--panel);border-radius:6px;padding:6px 10px;font-size:12.5px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.ghost{background:transparent}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.dsr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.dsr b{font-family:var(--font-num);color:var(--ink)}
+
+/* ── map (Leaflet) ── */
+/* Leaflet 은 타일·마커 레이어를 z-index 400 에 둔다. isolation 으로 지도 안에 가둬야
+   상세 패널(z-index 20~60)이 지도 위로 올라온다 — 안 그러면 전체화면 상세가 지도에 덮인다. */
+.mapwrap{position:relative;overflow:hidden;background:var(--panel-2);z-index:0;isolation:isolate}
+#map{position:absolute;inset:0;background:var(--panel-2)}
+.leaflet-container{font:inherit;background:var(--panel-2)}
+/* 타일은 밝은 판을 쓰고 어두운 화면에서만 반전시킨다 — 별도 타일셋을 더 받지 않으려는 것 */
+:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}}
+.leaflet-tooltip.mktip{background:var(--ink);color:var(--panel);border:0;box-shadow:var(--shadow);font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap}
+.leaflet-tooltip.mktip::before{display:none}
+.leaflet-tooltip.mktip .num{font-family:var(--font-num)}
+.leaflet-control-attribution{font-size:10.5px;background:rgba(255,255,255,.8)}
+:root[data-theme="dark"] .leaflet-control-attribution{background:rgba(0,0,0,.55);color:#bbb}
+.maptools{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:500}
+.maptools button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line-2);background:var(--panel);box-shadow:var(--shadow);font-family:var(--font-num);font-size:16px}
+.legend{position:absolute;left:12px;bottom:22px;z-index:500;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;display:grid;gap:4px;box-shadow:var(--shadow)}
+.legend .row{display:flex;align-items:center;gap:8px;color:var(--ink-2)}
+.legend .dot{width:10px;height:10px;border-radius:50%;border:1px solid #fff}
+.legend .dot.apt{background:var(--apt)} .legend .dot.villa{background:var(--villa)}
+.legend .dot.sel{background:transparent;border:2px solid var(--accent)}
+.legend .dot.blk{background:var(--ink-4);border:1px dashed #fff}
+/* 이 블록이 위쪽 모바일 미디어쿼리보다 뒤에 있어 display 를 덮어쓴다 → 모바일 숨김을 여기서 다시 건다 */
+@media (max-width:760px){.legend{display:none}}
+
+/* ── list ── */
+.listhead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+.listhead .count{font-size:13px;color:var(--ink-2);border-radius:6px;padding:3px 7px;margin:-3px -7px}
+/* 검색을 눌렀는데 결과 수가 그대로면 아무 일도 안 일어난 것처럼 보인다 → 한 번 번쩍이고 무엇이 바뀌었는지 말해 준다 */
+.count .just{margin-left:6px;font-size:11px;padding:2px 7px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:600;white-space:nowrap}
+.count.flash{animation:countflash 1.2s ease-out}
+@keyframes countflash{0%{background:var(--accent-soft)}100%{background:transparent}}
+.listhead .count b{font-family:var(--font-num);color:var(--ink)}
+.listhead select{background:var(--panel-2);border:1px solid var(--line-2);border-radius:6px;padding:4px 8px;font-size:12.5px}
+.items{overflow:auto;flex:1;min-height:0}
+.item{display:grid;grid-template-columns:44px 1fr auto;gap:2px 10px;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:hover{background:var(--panel-2)}
+.item.sel{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.item .rk{font-family:var(--font-num);color:var(--ink-3);font-size:12px;padding-top:3px}
+.item .name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.item .where{color:var(--ink-3);font-size:12px}
+.item .price{font-family:var(--font-num);font-size:15px;font-weight:500;text-align:right;white-space:nowrap}
+.item .cash{font-size:12px;color:var(--ink-3);text-align:right;white-space:nowrap}
+.item .tags{grid-column:2/4;display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.tag{font-size:11px;padding:2px 7px;border-radius:4px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line)}
+.tag.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.tag.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.tag.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.tag.neutral{background:var(--panel-2);color:var(--ink-2);border-color:var(--line)}
+.tag.apt{background:var(--apt-soft);color:var(--apt);border-color:transparent}
+.tag.villa{background:var(--villa-soft);color:var(--villa);border-color:transparent}
+.candidate-sub{font-size:10px;display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border:1px solid var(--line);background:var(--panel-2);border-radius:4px;color:var(--ink-3);white-space:nowrap}
+/* 등급 배지 — 자금을 넣어야 판정된다 */
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.01em;white-space:nowrap}
+.badge.strong{background:var(--accent);color:var(--accent-ink)}
+.badge.good{background:var(--ok-soft);color:var(--ok)}
+.detail h3 .badge{vertical-align:middle;margin-left:8px;font-size:12px}
+.candidate-badge.prio{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent)}
+.badge.top,.candidate-badge.top{background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.candidate-badge.good{background:var(--ok-soft);color:var(--ok);border:1px solid rgba(46,125,91,.25)}
+.candidate-badge.warn{background:var(--warn-soft);color:var(--warn);border:1px solid rgba(178,106,0,.25)}
+.candidate-badge.neutral{background:var(--panel-2);color:var(--ink-3);border:1px solid var(--line)}
+.candidate-badge.muted{background:var(--panel-2);color:var(--ink-3);border:1px solid var(--line)}
+/* 점수 내역 막대 — 합이 총점과 맞는다 */
+.parts{display:grid;grid-template-columns:auto minmax(50px,1fr) auto;gap:5px 10px;align-items:center;font-size:12.5px;
+  border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--panel-2)}
+.parts .lb{color:var(--ink-2);white-space:nowrap}
+.parts .br{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.parts .br i{display:block;height:100%;border-radius:4px}
+.parts .br i.pos{background:var(--apt)} .parts .br i.neg{background:var(--bad)}
+.parts .pt{font-family:var(--font-num);text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+.invhead{display:flex;align-items:baseline;gap:10px;margin:2px 0 8px}
+.invhead .num{font-family:var(--font-num);font-size:26px;font-weight:600;letter-spacing:-.02em}
+.invhead .gr{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--panel-2);color:var(--ink-2)}
+.invhead .gr.상위권{background:var(--accent);color:var(--accent-ink)}
+.invhead .gr.양호{background:var(--ok-soft);color:var(--ok)}
+.cats{display:grid;gap:8px}
+.cat{border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:9px 11px}
+.cat > summary{display:flex;align-items:center;gap:9px;cursor:pointer;list-style:none;font-size:13px}
+.cat > summary::-webkit-details-marker{display:none}
+.cat .cl{font-weight:600;color:var(--ink);white-space:nowrap}
+.cat .cb{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:40px}
+.cat .cb i{display:block;height:100%;border-radius:4px;background:var(--apt)}
+.cat .cs{font-family:var(--font-num);color:var(--ink);font-variant-numeric:tabular-nums}
+.cat .cn{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.inds{display:grid;grid-template-columns:auto 1fr auto auto;gap:4px 8px;align-items:center;margin-top:8px;font-size:12px}
+.inds .il{color:var(--ink-2);white-space:nowrap}
+.inds .ib{height:6px;border-radius:3px;background:var(--line);overflow:hidden;min-width:30px}
+.inds .ib i{display:block;height:100%;border-radius:3px;background:var(--apt)}
+.inds .iv{font-family:var(--font-num);color:var(--ink-3);text-align:right;white-space:nowrap}
+.inds .ip{font-family:var(--font-num);color:var(--ink);text-align:right;white-space:nowrap}
+.inds .miss{color:var(--ink-4);font-style:normal}
+.parts .axnote{grid-column:1/-1;font-size:11.5px;color:var(--ink-3);line-height:1.45;margin:-2px 0 4px}
+.parts .tot{grid-column:1/-1;display:flex;justify-content:space-between;border-top:1px solid var(--line-2);
+  margin-top:3px;padding-top:6px;font-weight:600}
+.why{margin:6px 0 0;padding-left:16px;font-size:12.5px;color:var(--ink-2)}
+.kd{display:inline-block;width:8px;height:8px;border-radius:50%}
+.kd.apt{background:var(--apt)} .kd.villa{background:var(--villa)}
+
+/* ── detail ── */
+.detail{border-top:1px solid var(--line);background:var(--panel);max-height:56%;overflow:auto;padding:14px 16px 20px;display:none}
+.detail.open{display:block}
+.detail h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.detail .sub{color:var(--ink-3);font-size:12.5px;margin:2px 0 10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0;font-family:var(--font-num)}
+.kv dd.txt{font-family:var(--font-ui)}
+.detail h4{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 6px;font-weight:600}
+.flow{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel-2)}
+.flow .k{color:var(--ink-2)} .flow .v{font-family:var(--font-num);text-align:right}
+.flow .tot{grid-column:1/-1;display:flex;justify-content:space-between;border-top:1px solid var(--line-2);margin-top:4px;padding-top:6px;font-weight:600}
+.verdict{border-radius:8px;padding:8px 10px;font-size:13px;border:1px solid transparent}
+.verdict.ok{background:var(--ok-soft);color:var(--ok)} .verdict.warn{background:var(--warn-soft);color:var(--warn)} .verdict.bad{background:var(--bad-soft);color:var(--bad)}
+.detail ul{margin:4px 0 0;padding-left:16px;font-size:12.5px;color:var(--ink-2)}
+.detail li{margin:2px 0}
+.links{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.links a{font-size:12.5px;border:1px solid var(--line-2);border-radius:6px;padding:5px 9px;text-decoration:none;color:var(--ink)}
+.detail .tools{float:right;display:flex;gap:2px;align-items:center;margin:-2px -6px 0 8px}
+.detail .tools button{border:0;background:transparent;font-size:15px;line-height:1;color:var(--ink-3);padding:5px 8px;border-radius:6px}
+.detail .tools button:hover{background:var(--panel-2);color:var(--ink)}
+.detail .tools .close{font-size:19px}
+/* 상세를 끌어올려 전체화면으로 — 지도·목록을 덮고 본문 폭을 넓게 준다 */
+.detail.full{position:fixed;inset:0;width:100%;height:100%;max-height:none;z-index:60;border:0;border-radius:0;box-shadow:none;padding:20px 16px 48px;overflow:auto}
+.detail.full h3{font-size:21px}
+.detail.full .kv,.detail.full .flow,.detail.full ul{font-size:14px}
+@media (min-width:761px){.detail.full{padding:28px max(28px,calc(50% - 400px)) 56px}}
+.empty{padding:28px 16px;color:var(--ink-3);text-align:center;font-size:13px}
+/* 조건은 검색 버튼을 눌러야 반영된다 — 바뀐 게 있으면 버튼에 테를 두른다 */
+.searchbar{position:sticky;bottom:-24px;margin:auto -16px -24px;padding:10px 16px 16px;display:flex;gap:6px;background:var(--panel);border-top:1px solid var(--line);z-index:3}
+.searchbar .btn.primary{flex:1;padding:9px 12px;font-size:13.5px}
+.btn.dirty{box-shadow:0 0 0 3px var(--accent-soft)}
+.dirtydot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;visibility:hidden}
+.dirtydot.on{visibility:visible}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+/* 읽는 순서: 자료 상태 → 내 조건 → 후보 → 근거 */
+:root{--bg:#F3F6F7;--panel-2:#F1F5F5;--line:#DFE6E8;--line-2:#BCCBD0;--ink:#182D35;--ink-2:#405860;--ink-3:#667B82;--accent:#087F75;--accent-soft:#E2F1EC;--apt:#2F6991;--shadow:0 12px 35px rgba(25,52,62,.10)}
+:root[data-theme="dark"]{--bg:#111B20;--panel:#18262C;--panel-2:#213139;--line:#35464E;--line-2:#4B606A;--ink:#E9F1F3;--ink-2:#BDCED4;--ink-3:#91A9B2;--accent:#5BCBB7;--accent-soft:#1D443D;--accent-ink:#082721;--apt:#8BBCDF}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111B20;--panel:#18262C;--panel-2:#213139;--line:#35464E;--line-2:#4B606A;--ink:#E9F1F3;--ink-2:#BDCED4;--ink-3:#91A9B2;--accent:#5BCBB7;--accent-soft:#1D443D;--accent-ink:#082721;--apt:#8BBCDF}}
+body{font-size:14px;line-height:1.6}.top{padding:18px 24px 14px;align-items:center}.brand{gap:2px;display:grid}.brand h1{font-family:var(--font-ui);font-size:23px;letter-spacing:-.05em}.brand .sub{font-size:12px}.top .meta{font-size:11px;gap:12px}.top .meta .source-name{display:none}
+.data-strip{display:flex;gap:16px;align-items:center;padding:10px 24px;background:var(--panel);border-bottom:1px solid var(--line)}.data-overview{flex:1;min-width:0;display:flex;gap:20px;align-items:center;flex-wrap:wrap}.data-overview>div{display:grid;gap:1px}.data-overview small{font-size:10.5px;color:var(--ink-3)}.data-overview b{font-size:12px;font-weight:500}.status-label{color:var(--warn);background:var(--warn-soft);padding:4px 9px;border-radius:20px;font-size:11px;white-space:nowrap}.status-label.fresh{background:var(--ok-soft);color:var(--ok)}.source-details{font-size:12px;position:relative}.source-details summary{cursor:pointer;color:var(--ink-2)}.source-details>div{position:absolute;right:0;top:30px;width:400px;max-width:88vw;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;z-index:55;box-shadow:var(--shadow)}.source-row{border-bottom:1px solid var(--line);padding:8px 0;font-size:11px}.source-row:last-child{border:0}.source-row b{display:block;color:var(--ink-2)}.source-details p{margin:7px 0}.history-notice{display:flex;gap:8px;padding:9px 24px;color:var(--ink-2);background:var(--accent-soft);font-size:11.5px;border-bottom:1px solid var(--line)}.history-notice b{color:var(--accent);white-space:nowrap}.data-actions{display:flex;gap:10px;align-items:center}.data-actions .btn{white-space:nowrap}
+.app{grid-template-columns:294px minmax(280px,1fr) 500px;height:calc(100dvh - 166px);min-height:520px}.rail{padding:18px 18px 26px;gap:23px;background:var(--panel)}.sec h2{font-size:13px;letter-spacing:0;color:var(--ink);margin:0 0 11px;font-weight:700}.sec h2 .step{color:var(--accent);font-family:var(--font-num);font-size:10px;margin-right:6px}.field{border:0;padding:5px 0;gap:5px}.field label{font-size:12px}.field input[type=number],.field select{width:125px;padding:8px;font-size:12px;border-radius:7px}.toggle{font-size:12px;align-items:flex-start;padding:5px 0}.toggle input{margin-top:5px;flex:none}.hint{font-size:11.5px;line-height:1.65}.sec .hint{margin:8px 0 0}.profile-actions .btn{font-size:10.5px;padding:5px 7px}.profile-actions .primary{background:var(--panel-2);color:var(--ink-2);border-color:var(--line-2)}.chip{font-size:11.5px;padding:5px 9px;border-radius:7px;background:var(--panel)}.chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}.dsr{margin:8px 0;padding:9px;background:var(--panel-2);border-radius:8px;font-size:11px}.searchbar{bottom:-26px;margin:auto -18px -26px;padding:12px 18px 18px;gap:7px}.searchbar .btn.primary{font-size:13px;padding:10px 8px}.method-note{border-top:1px solid var(--line);padding-top:16px}.method-note summary{font-size:12px;cursor:pointer;color:var(--ink-2)}.method-note p{font-size:11.5px;color:var(--ink-3)}.range{margin-bottom:12px}.range .lab{font-size:12px}.range .lab b{font-size:11px}
+.list{background:var(--bg)}.listhead{padding:14px 16px;display:block;position:relative}.listhead-top{display:flex;justify-content:space-between;align-items:center;gap:7px}.listhead .count{font-size:14px;font-weight:600;padding:0;margin:0}.listhead .count b{font-size:19px}.listhead select{font-size:11px;padding:6px 8px;background:var(--panel)}.list-sub{font-size:10.5px;color:var(--ink-3);margin-top:4px;line-height:1.5}.list-summary{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}.list-summary span{font-size:10px;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);padding:3px 7px;border-radius:5px}.list-summary strong{color:var(--accent);font-weight:600}.count .just{font-size:9px;display:inline-block}.items{padding:12px}.item{grid-template-columns:1fr;gap:0;padding:16px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);transition:border-color .12s,box-shadow .12s}.item:hover{background:var(--panel);border-color:var(--line-2);box-shadow:var(--shadow)}.item.sel{background:var(--panel);border:1px solid var(--accent);box-shadow:inset 3px 0 0 var(--accent)}.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.card-title{min-width:0}.item .name{font-size:14px;font-weight:600;line-height:1.45;display:block;overflow-wrap:anywhere}.item .rk{display:inline;font-size:10px;color:var(--ink-3);margin-right:5px}.item .where{font-size:10.5px;margin-top:4px}.candidate-badge{font-size:9px;color:var(--ink-3);background:var(--panel-2);padding:3px 6px;border-radius:4px;white-space:nowrap}.card-numbers{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:10px}.card-numbers small{display:block;font-size:10px;color:var(--ink-3);margin-bottom:2px}.item .price{font-size:19px;letter-spacing:-.05em;text-align:left;font-weight:500}.card-numbers .cash-value{font-family:var(--font-num);font-size:16px;color:var(--ink);letter-spacing:-.04em}.item .cash{text-align:left;font-size:10px;white-space:normal;margin-top:2px}.card-assessment{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.card-assessment .tag{font-size:10px;border-radius:5px;padding:3px 7px}.card-reason{display:grid;grid-template-columns:25px 1fr;gap:5px;font-size:10.5px;line-height:1.6;margin:3px 0;color:var(--ink-2)}.card-reason .key{color:var(--ink-3);font-size:10px}.card-reason.risk{color:var(--warn)}.card-foot{display:flex;justify-content:space-between;gap:7px;font-size:9.5px;color:var(--ink-3);margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}.item .tags{grid-column:auto;margin:0}.card-foot strong{font-weight:500;color:var(--ink-2)}.item .badge{font-size:9px}.empty{padding:30px 20px;line-height:1.8}.empty b{display:block;color:var(--ink);margin-bottom:8px}
+.detail{padding:20px;max-height:62%;box-shadow:0 -8px 22px rgba(20,50,60,.06)}.detail h3{font-size:19px}.detail .sub{font-size:11.5px}.detail h4{font-size:13px;letter-spacing:0;margin:25px 0 10px;color:var(--ink)}.detail .verdict{margin:7px 0;font-size:12px;line-height:1.7;padding:12px;border-radius:9px}.detail ul{font-size:12px;line-height:1.7;padding-left:18px}.detail li{margin:5px 0}.detail .flow{font-size:12px;padding:13px;gap:7px 12px;background:var(--panel-2);border-radius:10px}.detail .kv{font-size:12px;gap:8px 15px}.detail .tools{position:sticky;top:0;background:var(--panel);z-index:5;padding:4px;border:1px solid var(--line);border-radius:8px;gap:4px}.detail .tools button{font-size:13px;padding:8px}.detail .tools .close{font-size:20px}.detail.full{padding:28px max(24px,calc(50% - 435px)) 64px}.detail.full h3{font-size:27px}.detail .links a{font-size:11px;padding:8px 10px}.detail-source{padding:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;font-size:11px;color:var(--ink-2);margin:14px 0}.evidence-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.evidence-tile{border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--panel-2)}.evidence-tile small{display:block;color:var(--ink-3);font-size:10px}.evidence-tile b{font-family:var(--font-num);font-size:22px;font-weight:500}.evidence-tile p{margin:3px 0 0;font-size:10.5px;color:var(--ink-3)}.invhead{margin-bottom:7px;gap:8px}.invhead .num{font-size:25px}.cat{background:var(--panel);padding:12px}.cat>summary{flex-wrap:wrap}.cat .cl{font-size:12px}.cat .cs{font-size:12px}.cat .cn{font-size:10px}.inds{font-size:10.5px;grid-template-columns:minmax(80px,1fr) 50px auto}.inds .ib{display:none}.inds .il{white-space:normal}.cat .hint{font-size:10.5px}.detail-section{border-top:1px solid var(--line);margin-top:20px;padding-top:2px}
+@media(max-width:1280px) and (min-width:761px){.app{grid-template-columns:270px minmax(240px,1fr) 500px;grid-template-rows:minmax(0,1fr);height:calc(100dvh - 166px);min-height:540px}.list{grid-column:auto;border-left:1px solid var(--line);border-top:0}.rail{padding-left:14px;padding-right:14px}.searchbar{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}.top{padding-left:18px;padding-right:18px}.data-strip{padding-left:18px;padding-right:18px;gap:10px}.data-overview{gap:13px}.data-overview .built-date{display:none}}
+@media(max-width:1020px) and (min-width:761px){.app{grid-template-columns:260px minmax(0,1fr);grid-template-rows:370px minmax(400px,1fr);height:auto}.rail{grid-row:1/3;max-height:calc(100dvh - 166px);position:sticky;top:0}.list{grid-column:2;min-height:500px;border-top:1px solid var(--line)}.items{max-height:680px}.data-overview>div:nth-of-type(3){display:none}.top .meta{display:none}.detail{max-height:600px}}
+@media(min-width:1021px){body{height:100dvh;display:flex;flex-direction:column;overflow:hidden}.top,.data-strip,.history-notice{flex:none}.app{flex:1;min-height:0;height:auto}}
+@media(max-width:760px){.top{padding:15px 16px 12px}.brand h1{font-size:21px}.brand .sub{font-size:11px}.data-strip{padding:10px 16px;display:block}.data-overview{gap:8px 18px}.data-overview>div{flex:1;min-width:110px}.data-overview small{font-size:9px}.data-overview b{font-size:10.5px}.data-overview .built-date{display:none}.data-actions{margin-top:9px;justify-content:space-between}.data-actions .btn{padding:4px 8px;font-size:10px}.source-details{font-size:10px}.source-details>div{right:auto;left:0}.history-notice{padding:9px 16px;font-size:10px;display:block}.history-notice b{margin-right:5px}.app{height:auto;min-height:0;display:flex}.railbar{padding:11px 16px;z-index:10;gap:7px}.railbar b{font-size:10.5px;font-family:var(--font-ui)}.railbar .btn{font-size:11px;padding:7px 9px}.rail{max-height:72dvh;padding:18px;gap:22px}.field input[type=number]{width:150px}.mapwrap{height:260px;min-height:260px}.list{min-height:400px;overflow:visible}.listhead{padding:14px 16px}.listhead select{max-width:160px}.listhead .count{font-size:14px}.items{padding:12px;overflow:visible}.item{padding:16px}.detail{position:fixed;left:0;right:0;bottom:0;max-height:75dvh;z-index:30;border-top:1px solid var(--line-2);border-radius:16px 16px 0 0;box-shadow:0 -15px 45px rgba(20,40,50,.22);padding:18px 18px 35px}.detail.full{padding:18px 18px 40px;max-height:100dvh;min-height:100dvh}.detail.full h3{font-size:22px}.detail.full .flow,.detail.full .kv,.detail.full ul{font-size:12px}.detail .tools{top:0}.invhead{flex-wrap:wrap}.source-row{font-size:10.5px}}
+  .card-ranking{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}.rank-pill{color:var(--accent);background:var(--accent-soft);font-weight:700;font-size:12px;padding:3px 8px;border-radius:6px;white-space:nowrap}.rank-pill small{font-size:9px;font-weight:400;margin-left:4px}.action-pill{font-size:11px;font-weight:600;color:var(--ink-2);padding:3px 7px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2)}.action-pill.strong,.action-pill.good{color:var(--ok);border-color:transparent;background:var(--ok-soft)}.action-pill.caution{color:var(--warn);border-color:transparent;background:var(--warn-soft)}
+/* 최상위(top)는 한눈에 띄게 — '높음'이 1천 곳이면 고를 수가 없다(2026-09-12) */
+  .action-pill.top{color:var(--accent-ink);background:var(--accent);border-color:var(--accent);font-weight:800}.rank-score{font-size:10px;margin-left:auto;color:var(--ink-3)}.card-title .name{font-size:16px}.investment-headline{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.7;margin:10px 0 6px}.card-reason{font-size:11px;grid-template-columns:35px 1fr}.score-drivers{font-size:10.5px;line-height:1.65;margin:8px 0;padding:8px 10px;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--ink-2)}.score-drivers b{color:var(--ink);font-weight:600}.property-facts{display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;background:var(--panel-2);padding:11px;border-radius:8px;margin-top:10px}.property-facts>div{display:grid;gap:2px;min-width:0}.property-facts small{font-size:9.5px;color:var(--ink-3)}.property-facts b{font-size:11px;font-weight:500;color:var(--ink-2);line-height:1.5;overflow-wrap:anywhere}.property-facts .fact-note{font-size:9px;color:var(--ink-3)}.card-next{font-size:10.5px;line-height:1.6;margin:10px 0 0;color:var(--ink-2)}.card-next b{color:var(--accent);font-weight:600}.card-links{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:9px;margin-top:10px;flex-wrap:wrap}.card-links a{font-size:10.5px;text-decoration:none}.card-links small{margin-left:auto;font-size:9.5px;color:var(--ink-3)}.thesis-box{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel-2);margin:16px 0}.thesis-box h4{margin:0 0 8px;font-size:16px}.thesis-box .thesis-lead{font-size:14px;font-weight:600;line-height:1.7;margin:8px 0}.thesis-box .thesis-driver{font-size:12px;line-height:1.8;margin:9px 0}.thesis-driver b{display:block;color:var(--ink);font-weight:600}.thesis-driver span{color:var(--ink-2)}.thesis-risk{font-size:11px;color:var(--warn);border-top:1px solid var(--line);padding-top:10px;margin-top:12px;line-height:1.7}.evidence-note{font-size:11px;color:var(--ink-3);line-height:1.8}.market-table{width:100%;border-collapse:collapse;font-size:11px;margin:12px 0}.market-table th,.market-table td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:right}.market-table th:first-child,.market-table td:first-child{text-align:left}.market-table th{font-weight:500;color:var(--ink-3)}.market-table td{color:var(--ink-2)}.detail .cat + .cat{margin-top:8px}.detail .property-facts{font-size:12px}.detail .property-facts b{font-size:13px}.detail .property-facts small{font-size:11px}.detail .thesis-box .rank-score{font-size:11px}@media(max-width:760px){.rank-pill{font-size:12px}.card-title .name{font-size:16px}.property-facts b{font-size:11.5px}.investment-headline{font-size:13px}.card-reason{font-size:11.5px}.score-drivers{font-size:11px}.card-next{font-size:11px}.list-summary{gap:6px}.thesis-box{padding:14px}}
+.map-togglebar{display:none}
+@media(max-width:760px){.map-togglebar{display:flex;justify-content:flex-end;padding:6px 16px;background:var(--panel);border-bottom:1px solid var(--line)}.map-togglebar .btn{font-size:11px;padding:5px 10px}.mapwrap{display:none}.mapwrap.mobile-map-open{display:block}}
+</style>
+</head>
+<body>
+<script src="advisor.js"></script>
+<script src="observations.js"></script>
+<script src="investment_scenario.js"></script>
+<header class="top">
+  <div class="brand">
+    <h1>잠실권 매수 탐색기</h1>
+    <span class="sub">내 예산으로 좁히고, 근거를 확인하는 주택 탐색</span>
+    <a href="workspace.html?mode=live#/" style="display:inline-flex;align-items:center;min-height:44px;font-size:14px">조건·근거·자금 통합 분석 열기 →</a>
+  </div>
+  <div class="meta"><span>분석 대상일 <b id="asof">—</b></span><span>실거래 후보 <b id="total" class="num">0</b>곳</span></div>
+</header>
+<div class="data-strip" aria-label="자료의 시점과 상태">
+  <div class="data-overview"><span id="freshnessStatus" class="status-label">실거래 수집 상태 확인 중</span><div><small>실거래 원천 수집</small><b id="collectedAt">미확인</b></div><div><small>가장 최근 계약일</small><b id="latestTransaction">미확인</b></div><div class="built-date"><small>화면 자료 생성</small><b id="generatedAt">미확인</b></div></div>
+  <div class="data-actions"><details class="source-details"><summary>출처·누락 확인</summary><div id="sourceDetails">자료를 확인하고 있습니다.</div></details><button id="reloadData" class="btn">게시 자료 새로고침 ↻</button></div>
+</div>
+<div class="history-notice"><b id="listingStatus">현재 판매 매물 확인 0건</b><span>아래는 과거 실거래로 찾은 후보입니다. 표시 가격은 호가가 아니며, 매도 여부와 실제 가격은 원문에서 확인해야 합니다.</span></div>
+
+<div class="app">
+  <div class="railbar"><span class="dirtydot" id="dirtyDot"></span><b id="railSummary">조건 · 전체</b><button class="btn primary" id="railSearch">검색</button><button class="btn" id="railToggle" aria-expanded="false" aria-controls="rail">자금·조건</button></div>
+  <aside class="rail" id="rail">
+    <section class="sec">
+      <h2><span class="step">01</span>내 예산과 대출</h2>
+      <div class="field"><label for="cash">쓸 수 있는 현금</label><input id="cash" type="number" step="1000000" min="0" placeholder="원"></div>
+      <div class="field"><label for="reserve">남겨둘 예비비</label><input id="reserve" type="number" step="1000000" min="0" placeholder="원"></div>
+      <div class="field"><label for="income">연소득 (세전)</label><input id="income" type="number" step="1000000" min="0" placeholder="원"></div>
+      <div class="field"><label for="debt">마이너스통장 한도</label><input id="debt" type="number" step="1000000" min="0" placeholder="원"></div>
+      <div class="field"><label for="rate">마통 금리 %</label><input id="rate" type="number" step="0.1" min="0" placeholder="4.7"></div>
+      <label class="toggle"><input type="checkbox" id="firstTime" checked> 생애최초 구입 시나리오</label>
+      <div class="field"><label for="monthlyBudget">월 부담 상한</label><input id="monthlyBudget" type="number" step="100000" min="0" placeholder="선택 · 원"></div>
+      <details class="method-note" style="padding-top:8px;margin-top:8px"><summary>대출 가정·추가 비용 조정</summary>
+        <div class="field"><label for="mortgageRate">주담대 금리 %</label><input id="mortgageRate" type="number" step="0.1" min="0" max="30" value="4"></div>
+        <div class="field"><label for="stressRate">DSR 심사금리 %</label><input id="stressRate" type="number" step="0.1" min="0" max="30" value="7"></div>
+        <div class="field"><label for="loanYears">대출 기간 (년)</label><input id="loanYears" type="number" step="1" min="1" max="30" value="30"></div>
+        <div class="field"><label for="extraCash">수리 등 추가 현금</label><input id="extraCash" type="number" step="1000000" min="0" placeholder="선택 · 원"></div>
+        <p>대출·세금은 입력한 가정에 따른 추정입니다. 실제 한도와 감면 자격은 금융기관·관할기관 확인이 필요합니다.</p>
+      </details>
+      <div class="dsr"><span>기존 부채 DSR 월 환산</span><b id="debtMonthly">—</b><span>주담대 DSR 잔여 여력</span><b id="dsrRoom">—</b></div>
+      <div class="profile-actions">
+        <button class="btn primary" id="saveProfile">이 기기에 저장</button>
+        <button class="btn ghost" id="clearProfile">지우기</button>
+        <button class="btn ghost" id="shareLink">공유용 링크 복사</button>
+      </div>
+      <p class="hint">금액은 <b>원 단위</b>입니다. 자금은 이 브라우저에서만 계산·저장하며 공유 링크에는 포함하지 않습니다.</p>
+    </section>
+
+    <section class="sec">
+      <h2><span class="step">02</span>찾는 지역</h2>
+      <div class="chips" id="regionChips"></div>
+      <div class="field" style="margin-top:8px"><label for="place">구·동 이름으로 좁히기</label><input id="place" type="search" list="placeList" placeholder="예: 구의동 · 광진구 · 중곡" autocomplete="off"></div>
+      <datalist id="placeList"></datalist>
+      <p class="hint" id="placeHint">비워 두면 위에서 고른 권역 전체를 봅니다. 여러 곳은 쉼표로 나눠 적습니다(예: 구의동, 자양동).</p>
+    </section>
+
+    <section class="sec">
+      <h2>주택 유형</h2>
+      <div class="chips">
+        <button class="chip kind-apt" data-kind="아파트" aria-pressed="true">아파트</button>
+        <button class="chip kind-villa" data-kind="빌라" aria-pressed="true">빌라</button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2><span class="step">03</span>후보 조건</h2>
+      <div class="field"><label for="commuteMax">잠실 통근권</label><select id="commuteMax"><option value="2">기존 분류 1·2</option><option value="1">기존 분류 1</option><option value="0">전체 · 미분류 포함</option></select></div>
+      <p class="hint" style="margin:0 0 12px">도시철도 노선 기준 추정 분류입니다. 실제 출퇴근 시간은 별도 확인합니다.</p>
+      <div class="range"><div class="lab"><span>거래가격 (이상~이하)</span><b class="num" id="priceLab"></b></div>
+        <div class="rr"><span>최저</span><input type="range" id="pmin" min="0" max="0" step="1" value="0" aria-label="최저 매매가"></div>
+        <div class="rr"><span>최고</span><input type="range" id="pmax" min="0" max="0" step="1" value="0" aria-label="최고 매매가"></div></div>
+      <div class="range"><div class="lab"><span>90일 최소 거래</span><b class="num" id="dealsLab"></b></div><input type="range" id="deals" min="1" max="20" step="1" value="1"></div>
+      <label class="toggle"><input type="checkbox" id="onlyFeasible" checked> 예비비를 남기고 현금이 맞는 후보만</label>
+      <label class="toggle"><input type="checkbox" id="onlyDsr"> 소득 확인·DSR 가정 충족 후보만</label>
+      <label class="toggle"><input type="checkbox" id="onlyMonthly"> 월 부담 상한 안의 후보만</label>
+      <label class="toggle"><input type="checkbox" id="noBlocked"> 권리 확인 우선 후보 숨김</label>
+      <label class="toggle"><input type="checkbox" id="onlyJeonse"> 비규제지역만 (임대 가능 여부 별도 확인)</label>
+    </section>
+
+    <details class="method-note"><summary>어떤 후보를 위에 보여주나요?</summary>
+      <p><b>① 예산 적합성</b><br>소득·부채를 반영한 추정 대출과 필요 현금, 예비비, 월 부담을 각각 확인합니다. 자금 여유와 투자가치는 별개입니다.</p>
+      <p><b>② 투자 매력과 추천 이유</b><br>거래가격·역 접근성·거래 흐름·정비사업 근거를 연결해 앞으로의 가치가 달라질 가능성을 판단합니다. 주목한 사실, 미래 가치로 이어지는 경로, 판단이 바뀌는 조건을 함께 보여줍니다.</p>
+      <p><b>③ 조건 내 추천 순위</b><br>예산·지역·가격 필터를 먼저 적용하고 남은 후보의 투자 매력으로 순위를 다시 매깁니다. 추천 이유를 보고 임장·가격 비교를 진행하며, 실제 호가·권리·추가 비용을 확인해 매수판단을 완성합니다.</p>
+      <p>정비사업은 같은 동의 정보와 해당 지번의 대조 결과를 구분합니다. 대표 지번 일치만으로 구역 편입·조합원 자격·현금청산 여부를 확정하지 않습니다.</p>
+      <p>새로고침은 현재 게시된 자료를 다시 불러옵니다. 원천 API 수집이나 부동산 매물 조회를 즉시 실행하지 않습니다.</p>
+    </details>
+    <div class="searchbar"><button class="btn primary" id="doSearch">이 조건으로 검색</button><button class="btn ghost" id="resetCond">초기화</button></div>
+  </aside>
+
+  <div class="map-togglebar"><button class="btn" id="toggleMap" aria-expanded="false" aria-controls="map">지도 펼치기</button></div>
+
+  <main class="mapwrap" aria-label="지도">
+    <div id="map"></div>
+    <div class="maptools"><button id="zin" aria-label="확대">+</button><button id="zout" aria-label="축소">−</button><button id="zfit" aria-label="후보 전체 보기" title="후보 전체 보기">⌂</button></div>
+    <div class="legend">
+      <div class="row"><span class="dot apt"></span>아파트</div>
+      <div class="row"><span class="dot villa"></span>빌라</div>
+      <div class="row"><span class="dot blk"></span>주변 정비사업 참고</div>
+      <div class="row"><span class="dot sel"></span>선택</div>
+      <div class="row" style="color:var(--ink-3)">크기 = 90일 거래 건수</div>
+    </div>
+  </main>
+
+  <section class="list">
+    <div class="listhead">
+      <div class="listhead-top"><div class="count" id="countLine">검토 후보 <b id="shown">0</b><span class="just" id="justNote" hidden></span></div>
+        <select id="sort" aria-label="후보 정렬">
+          <option value="reco">투자 매력·임장 추천순</option>
+          <option value="budget">예산 적합 후보 먼저</option>
+          <option value="cash">필요현금 적은 순</option>
+          <option value="price">거래가격 낮은 순</option>
+          <option value="recent">최근 거래 순</option>
+          <option value="deals">거래 건수 많은 순</option>
+        </select></div>
+    <div class="list-sub" id="feasibleNote">자금을 입력하고 검색해 예산을 비교하세요.</div>
+    <div class="list-summary">
+      <span>현금 조건 <strong id="cashFitCount">—</strong></span>
+      <span>최상위 <strong id="topCountSummary">—</strong></span>
+      <span>임장 추천 <strong id="visitCountSummary">—</strong></span>
+      <span>판매 확인 <strong id="verifiedCount">0</strong>건</span>
+    </div>
+    <div class="list-sub" id="rankingNote">현재 적용한 조건 안에서 추천 순위를 매깁니다.</div>
+    </div>
+    <div id="observedListings" class="observed-listings"></div>
+    <div class="items" id="items"></div>
+    <div class="detail" id="detail"></div>
+  </section>
+</div>
+
+<script>
+(async () => {
+let DATA; try {
+const response = await fetch('data.json?v=' + Date.now(), { cache: 'no-store' });
+if (!response.ok) throw new Error('HTTP ' + response.status);
+DATA = await response.json();
+if (!Array.isArray(DATA.items)) throw new Error('자료 형식 오류');
+} catch (error) { document.body.textContent = '자료를 불러오지 못했습니다. 잠시 뒤 페이지를 새로고침해 주세요. 기존 자료를 최신으로 표시하지 않습니다.'; return; }
+const ITEMS = DATA.items;
+document.getElementById('total').textContent = ITEMS.length.toLocaleString();
+document.getElementById('asof').textContent = DATA.as_of;
+
+function hydrateInvestment(data){
+  const shared = data.investment_catalog;
+  if (!shared) return data;
+  const decodeText=value=>typeof value==='number' ? shared.texts?.[value] ?? String(value) : value;
+  const decodeList=values=>(values || []).map(decodeText);
+  for (const item of data.items || []) {
+    const signals=item.market_signals;
+    if(signals){
+      signals.windows=signals.windows || shared.market_signals_windows;
+      if(signals.pattern) signals.pattern=Object.assign({},shared.market_signal_patterns?.[signals.pattern.key],signals.pattern);
+      if(!signals.coverage && signals.coverage_id!=null) signals.coverage=shared.market_signal_coverage?.[signals.coverage_id];
+      if(signals.confidence) signals.confidence.reasons=decodeList(signals.confidence.reasons);
+    }
+    const inv = item.inv; if (!inv) continue;
+    inv.methodology = inv.methodology || shared.methodology || data.methodology;
+    for (const category of inv.cats || []) category.it = (category.it || []).map(indicator => {
+      if(!Array.isArray(indicator)) return Object.assign({},shared.indicators?.[indicator.k],indicator);
+      const [key,value=null,percentile=null,contribution=0,evidenceWeight=0,sourceId=null,status,weight]=indicator;
+      const restored=Object.assign({},shared.indicators?.[key],{k:key,v:value,p:percentile,contribution:contribution ?? 0,evidence_weight_pct:evidenceWeight ?? 0,source_basis:sourceId==null?null:decodeText(sourceId),status:status || (value==null?'missing':percentile==null?'reference':'scored')});
+      if(weight!=null) restored.weight=weight;
+      return restored;
+    });
+    inv.evidence_checks = (inv.evidence_checks || []).map(check => Object.assign({label:shared.evidence_checks?.[check.key]}, check));
+    inv.missing_checks=decodeList(inv.missing_checks);
+    if(inv.purchase_assessment) inv.purchase_assessment.missing_checks=decodeList(inv.purchase_assessment.missing_checks);
+    if(inv.assessment) inv.assessment.reasons=decodeList(inv.assessment.reasons);
+    if(inv.recommendation){
+      inv.recommendation.reasons=decodeList(inv.recommendation.reasons);
+      inv.recommendation.limitations=decodeList(inv.recommendation.limitations);
+      inv.recommendation.theses=(inv.recommendation.theses || []).map(thesis=>Object.assign({},shared.thesis_templates?.[thesis.template_id || thesis.key],thesis));
+    }
+    if (inv.peer_price_comparison) inv.peer_price_comparison = Object.assign({}, shared.peer_price_comparison, inv.peer_price_comparison);
+  }
+  return data;
+}
+hydrateInvestment(DATA);
+
+// ── 돈 표기 ──
+const won = v => { if (v == null) return '—'; v = Math.round(v); const e = Math.floor(v/1e8), m = Math.round((v%1e8)/1e4);
+  return e ? (m ? `${e}억 ${m.toLocaleString()}만` : `${e}억`) : `${m.toLocaleString()}만`; };
+const $ = id => document.getElementById(id);
+
+// ── 자금 계산 ──
+// 가정과 계산식은 advisor.js에서 관리하며, 소득에 따라 대출 한도를 낮춰 필요현금을 다시 구한다.
+function annuity(loan, annual, years){ return Advisor.annuity(loan, annual, years); }
+function calcFin(it, ft){ return Advisor.calculate(it, P, ft); }
+const FIN = new Map();
+function fin(it){ let f = FIN.get(it.id); if (!f) FIN.set(it.id, f = calcFin(it, state.firstTime)); return f; }
+
+// ── 프로필 (이 브라우저에만) ──
+const F = ['cash','reserve','income','debt','rate','monthlyBudget','mortgageRate','stressRate','loanYears','extraCash'];
+function readHash(){ // 주인용 링크: #cash=…&income=… 를 한 번 읽고 주소에서 지운다
+  const h = location.hash.slice(1); if (!h) return null;
+  const p = new URLSearchParams(h); const o = {}; let any = false;
+  F.forEach(k => { if (p.has(k)) { o[k] = Number(p.get(k)); any = true; } });
+  if (p.has('first')) { o.first = p.get('first') !== '0' && p.get('first') !== 'false'; any = true; }
+  if (any) history.replaceState(null, '', location.pathname + location.search);
+  return any ? o : null;
+}
+function loadProfile(){ let o = null; try { o = JSON.parse(localStorage.getItem('jamsil.profile') || 'null'); } catch(e){}
+  const fromHash = readHash(); if (fromHash) { o = Object.assign(o || {}, fromHash); try { localStorage.setItem('jamsil.profile', JSON.stringify(o)); } catch(e){} }
+  return o || {}; }
+function profile(){ const o = {}; F.forEach(k => { const raw=$(k).value, v=Number(raw); o[k] = raw!=='' && Number.isFinite(v) && v>=0 && v<=Number.MAX_SAFE_INTEGER ? v : null; }); return o; }
+function validateProfile(){
+  for (const key of F) {
+    const input=$(key), raw=input.value, value=Number(raw);
+    const invalid=input.validity.badInput || (raw!=='' && (!Number.isFinite(value) || value<Number(input.min || 0) || value>Number.MAX_SAFE_INTEGER || (input.max!=='' && value>Number(input.max))));
+    input.setCustomValidity(invalid ? `0 이상의 유효한 숫자를 입력해 주세요${input.max!==''?' (최대 '+input.max+')':''}.` : '');
+    if(invalid){openRail(true);input.reportValidity();input.focus();return false;}
+  }
+  return true;
+}
+function debtMonthly(p){ return Advisor.debtMonthly(p); }
+let P = {};
+function renderDsr(){ const p = profile(), dm = debtMonthly(p);
+  $('debtMonthly').textContent = p.debt ? `월 ${won(dm)}` : '—';
+  $('dsrRoom').textContent = p.income ? `월 ${won(Math.max(0, p.income*0.4/12 - dm))}` : '—'; }
+function flash(btn, t){ const o = btn.textContent; btn.textContent = t; setTimeout(() => btn.textContent = o, 1200); }
+
+// ── 판정 (적용된 조건 state 로만 계산한다) ──
+function feasible(it){ if (P.cash == null) return null; return fin(it).cash + (P.reserve||0) <= P.cash; }
+function nearMiss(it){ return P.cash != null && !feasible(it) && fin(it).cash + (P.reserve||0) <= P.cash*1.15; }
+function dsrOf(it){ return fin(it).dsr ?? null; }
+const blocked = it => it.redev && it.redev.blocked && it.redev.blocked.length;
+const entryable = it => it.redev && it.redev.entry && it.redev.entry.length;
+// 대표 지번 대조는 구역·권리 확인을 위한 단서이며 확정 판정이 아니다.
+const parcelBlocked = it => !!(it.parcel && it.parcel.blocked && it.parcel.blocked.length);
+const parcelEntry = it => !!(it.parcel && it.parcel.entry && it.parcel.entry.length);
+const farRoom = it => (it.far_cap && it.far_est) ? it.far_cap - it.far_est : null;
+// 투자판단과 예산 적합은 별도 축이다. 미확인 매물은 순위와 관계없이 매수 추천하지 않는다.
+const GRADE_LABEL = {hold:'비교 검토 후보',investigate:'투자 매력 검토',blocked:'권리 확인 우선',top:'최상위 · 먼저 볼 곳'};
+const SORT_LABEL = {reco:'투자 매력·임장 추천순',inv:'투자 매력 높은 순',budget:'예산 적합 후보 먼저',cash:'필요현금 적은 순',price:'거래가격 낮은 순',recent:'최근 거래 순',deals:'거래 건수 많은 순'};
+  let FILTERED_RANK = new Map(), DISPLAY_RANK = new Map(), FILTERED_POOL = 0;
+function grade(it){ return it.inv?.assessment?.status || 'hold'; }
+function recoOf(it){ return it.inv?.recommendation || null; }
+function investmentScore(it){ const score=recoOf(it)?.score ?? it.inv?.total; return score == null || !Number.isFinite(Number(score)) ? null : Number(score); }
+function assessmentLabel(it){
+  const label=it.inv?.assessment?.label;
+  if(label && !label.includes('보류')) return label;
+  return recoOf(it)?.bucket || GRADE_LABEL[grade(it)] || '비교 검토 후보';
+}
+function actionFor(it){return recoOf(it)?.action || (grade(it)==='blocked'?'구역·권리부터 확인하세요':investmentScore(it)==null?'기본 거래자료를 먼저 확인하세요':'실제 호가와 현장을 비교하세요');}
+function thesisList(it){return recoOf(it)?.theses || [];}
+function gradeWhy(it){ return it.inv?.assessment?.reasons || []; }
+function recoClass(it){if(grade(it)==='top')return 'top';const c=recoOf(it)?.conviction;return c==='strong'?'strong':c==='moderate'?'good':c==='excluded'||grade(it)==='blocked'?'caution':'';}
+  function rankText(it){
+    const display=DISPLAY_RANK.get(it.id);
+    if(display) return `${display.label} ${display.position}위`;
+    const local=FILTERED_RANK.get(it.id);
+    if(local?.scoreRank != null) return `투자점수 ${local.scoreRank}위`;
+    return '자료 확인';
+  }
+  function rankContext(it){
+    const local=FILTERED_RANK.get(it.id);
+    if(!local) return '전체 후보';
+    const tie=local.tieCount>1?` · 투자점수 공동 ${local.scoreRank}위 (${local.tieCount}곳)`:local.scoreRank!=null?` · 투자점수 ${local.scoreRank}위`:'';
+    return `조건 내 ${FILTERED_POOL.toLocaleString()}곳${tie}`;
+  }
+function updateListSummary(list){
+  $('topCountSummary').textContent = list.filter(it=>grade(it)==='top').length.toLocaleString()+'곳';
+  $('visitCountSummary').textContent = list.filter(it=>['strong','moderate'].includes(recoOf(it)?.conviction)).length.toLocaleString()+'곳';
+    $('rankingNote').textContent = `${SORT_LABEL[state.sort] || SORT_LABEL.reco} · 카드 순위는 현재 정렬의 1위부터 표시합니다. 투자점수 동점은 별도로 표시하며, 임장 권고는 근거 충분성도 반영합니다.`;
+}
+const CAT_DESC = {PRICE:'유사 주택과의 가격 차이에서 기회를 찾되, 연식·상태·권리 차이로 설명되는 할인인지 함께 확인합니다.',PLACE:'역 접근성은 거주 수요의 기반으로 해석합니다. 실제 출퇴근 경로와 시간은 따로 확인합니다.',DEV:'용적률·대지지분·해당 지번의 사업 근거를 함께 보고 개발 선택지를 판단합니다. 실제 추가분담금과 일정에 따라 판단이 달라집니다.',LIQ:'주변과의 가격·거래 흐름을 비교해 후행 회복 가능성과 지속적인 수요 약화를 구분합니다. 표본이 적으면 판단 강도를 낮춥니다.'};
+const CAT_NAME = {PRICE:'가격 차이와 기회',PLACE:'입지·거주 수요',DEV:'정비사업 선택지',LIQ:'거래 흐름·환금성'};
+const esc = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmtVal(v, u){
+  if (v == null) return '미확인';
+  if (u === '0/1') return v ? '예' : '아니오';
+  const n = Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10;
+  return `${n.toLocaleString()}${esc(u || '')}`;
+}
+  function scoreText(it){const score=investmentScore(it);return score==null?'자료 확인':score.toFixed(1);}
+  function positiveDrivers(it,limit=3){
+    return (it.inv?.cats||[]).flatMap(cat=>cat.it||[]).filter(x=>Number(x?.contribution)>0 && (x?.l||x?.label))
+      .sort((a,b)=>Number(b.contribution)-Number(a.contribution)).slice(0,limit);
+  }
+  function scoreDriversHtml(it){
+    const drivers=positiveDrivers(it); if(!drivers.length) return '';
+    return `<div class="score-drivers"><b>점수가 오른 이유</b> · ${drivers.map(x=>`${esc(x.l||x.label)} +${Number(x.contribution).toFixed(1)}점`).join(' · ')}</div>`;
+  }
+function coverageOf(it){return it.inv?.confidence?.coverage_pct ?? it.inv?.recommendation?.coverage ?? null;}
+function percentText(value, unit='%'){return value == null || !Number.isFinite(Number(value))?'미확인':`${Number(value)>0?'+':''}${Number(value).toFixed(1)}${unit}`;}
+function farCurrent(it){return it.far_actual != null?{value:it.far_actual,label:it.far_identity_verified?'대장':'대장 참고'}:it.far_est != null?{value:it.far_est,label:'추정'}:null;}
+function farText(it){const far=farCurrent(it);return far?`${Number(far.value).toFixed(1)}% (${far.label})`:'현재 용적률 미확인';}
+function farDifference(it){const far=farCurrent(it);const diff=it.far_headroom ?? (far && it.far_cap!=null?it.far_cap-far.value:null);return diff == null?null:Number(diff);}
+function landText(it){return it.land_share == null?'대지지분 미확인':`${Number(it.land_share).toFixed(1)}㎡ · ${!it.land_share_source || it.land_share_source==='reported_transaction'?'신고 표본 중위':'참고값'}`;}
+function hogangnonoLink(it){
+  const stored=it.hogangnono_url;
+  if(stored && /^https:\/\/hogangnono\.com\/apt\/[a-zA-Z0-9]+(?:[/?#].*)?$/.test(stored)) return {url:stored,label:'호갱노노 단지'};
+  return {url:`https://hogangnono.com/search?q=${encodeURIComponent(it.sgg+' '+it.dong+' '+it.apt)}`,label:'호갱노노 검색'};
+}
+function propertyFacts(it){
+  const signals=it.market_signals, candidate=signals?.candidate || {};
+  const comparable=['available','partial'].includes(signals?.status) && candidate.recent_activity_count!=null && candidate.prior_activity_count!=null;
+  const activityLabel=comparable?'거래 활동 · 최근 / 이전 기간':'거래 활동 · 최근 90일';
+  const activityCount=comparable?`${candidate.recent_activity_count}건 / ${candidate.prior_activity_count}건`:`관측 ${it.deals ?? '—'}건`;
+  const activityNote=comparable?`거래건수 변화 ${percentText(candidate.recent_volume_change_pct)}`:'기간·가격 비교 표본 부족';
+  const far=farCurrent(it), diff=farDifference(it);
+  return `<div class="property-facts"><div><small>역 접근성 · 직선거리</small><b>${it.station?esc(it.station.name)+' · '+Number(it.station.dist_m).toLocaleString()+'m':'역 거리 미확인'}</b><span class="fact-note">${it.commute!=null?'잠실 통근 분류 '+it.commute+' · 노선 추정':'통근 분류 미확인'}</span></div><div><small>${activityLabel}</small><b>${activityCount}</b><span class="fact-note">${activityNote}</span></div><div><small>용적률 · ${far?.label || '대장 확인 필요'}</small><b>${farText(it)}</b><span class="fact-note">${it.far_cap!=null?'상한 참고 '+it.far_cap+'%'+(diff!=null?' · 차이 '+Math.round(diff)+'%p':''):'상한 자료 미확인'}${it.far_actual!=null&&!it.far_identity_verified?' · 대상 일치 재확인 필요':''}</span></div><div><small>대지지분</small><b>${landText(it)}</b><span class="fact-note">${it.land_share!=null?'신고·대장 근거 확인':'대지권·건축물대장 확인'}</span></div></div>`;
+}
+function thesisHtml(it){
+  const rec=recoOf(it)||{}, theses=thesisList(it), primary=theses[0];
+  const reasons=rec.reasons || gradeWhy(it);
+  return `<section class="thesis-box"><div class="card-ranking"><span class="rank-pill">${rankText(it)}<small>${rankContext(it)}</small></span><span class="action-pill ${recoClass(it)}">${esc(assessmentLabel(it))}</span><span class="rank-score">투자 매력 ${scoreText(it)}${investmentScore(it)!=null?'점':''}</span></div><h4>투자 매력 / 추천 이유</h4><p class="thesis-lead">${esc(primary?.title || reasons[0] || actionFor(it))}</p>`+
+    (theses.length?theses.map(t=>`<div class="thesis-driver"><b>${esc(t.title)}</b><span>${(t.evidence || []).map(esc).join(' · ')}</span><br>${esc(t.mechanism)}${t.invalidation?`<div class="thesis-risk">판단이 바뀌는 조건 · ${esc(t.invalidation)}</div>`:''}</div>`).join(''):`<div class="thesis-driver">${reasons.map(esc).join(' · ')}</div>`)+
+    `<p class="card-next"><b>다음 행동</b> ${esc(actionFor(it))}</p><p class="evidence-note">${esc(it.inv?.confidence?.label || '')}${coverageOf(it)!=null?' · 근거 충족도(자료 품질 반영) '+coverageOf(it)+'%':''}. 이 점수는 관측된 근거를 연결한 상대적 투자 매력 판단이며 수익률 예측값은 아닙니다.</p></section>`;
+}
+function marketHtml(it){
+  const m=it.market_signals;
+  if(!m || !['available','partial'].includes(m.status)) return `<div class="detail-source"><b>최근 90일 관측 ${it.deals ?? '—'}건</b><br>${esc(m?.pattern?.label || '기간 비교 자료 부족')} · 거래 없음으로 해석하지 않습니다.<br>${(m?.confidence?.reasons || []).map(esc).join(' · ')}</div>`;
+  const c=m.candidate||{},n=m.neighborhood||{},r=m.relative||{},w=m.windows||{};
+  const count=value=>value==null?'—':value+'건';
+  return `<div class="detail-source"><b>${esc(m.pattern?.label || '주변과 흐름 비교')}</b><br>${esc(m.pattern?.interpretation || '')}<br>${esc(({moderate:'표본 근거 보통',limited:'표본 근거 제한적',unknown:'근거 부족'})[m.confidence?.level] || m.confidence?.level || '')} · ${(m.confidence?.reasons || []).map(esc).join(' · ')}</div><table class="market-table"><thead><tr><th>가격 표본과 거래 활동 구분</th><th>이 후보</th><th>주변 비교군</th></tr></thead><tbody><tr><td>가격 비교 표본 · 최근</td><td>${count(c.recent_count)}</td><td>${count(n.recent_count)}</td></tr><tr><td>가격 비교 표본 · 이전</td><td>${count(c.prior_count)}</td><td>${count(n.prior_count)}</td></tr><tr><td>동질 표본 거래가격 변화</td><td>${percentText(c.recent_price_change_pct)}</td><td>${percentText(n.recent_price_change_pct)}</td></tr><tr><td>거래 활동 건수 · 최근</td><td>${count(c.recent_activity_count)}</td><td>${count(n.recent_activity_count)}</td></tr><tr><td>거래 활동 건수 · 이전</td><td>${count(c.prior_activity_count)}</td><td>${count(n.prior_activity_count)}</td></tr><tr><td>활동 거래건수 변화</td><td>${percentText(c.recent_volume_change_pct)}</td><td>${percentText(n.recent_volume_change_pct)}</td></tr><tr><td>주변 대비 현재 단가 차이</td><td colspan="2">${percentText(r.recent_gap_pct)}</td></tr></tbody></table><p class="hint">가격 변화는 양 기간에 공통으로 거래된 면적 구간의 표본으로 계산합니다. 거래건수 변화는 비교 면적 범위 안의 활동 건수로 계산하며, (최근 활동 건수 ÷ 이전 활동 건수 − 1) × 100입니다. 따라서 가격 비교 표본 수와 거래 활동 건수가 다를 수 있습니다.</p><p class="hint">최근 ${dateText(w.recent?.start)}~${dateText(w.recent?.end)} / 이전 ${dateText(w.prior?.start)}~${dateText(w.prior?.end)} · 주변 ${n.peer_building_count??'—'}개 건물. 최근 90일 관측과 기간 범위가 다를 수 있으며, 같은 집의 가격상승률을 뜻하지 않습니다.</p>`;
+}
+function contributionHtml(it){
+  const v=it.inv, indicators=(v?.cats || []).flatMap(c=>c.it || []).filter(i=>Number(i.weight)>0);
+  if(!v || !indicators.length) return '';
+  const base=v.methodology?.base_score ?? 50, observed=v.score_coverage_pct ?? v.confidence?.observed_weight;
+  const points=value=>value==null?'—':`${Number(value)>0?'+':''}${Number(value).toFixed(3)}`;
+  const rows=indicators.map(i=>`<tr><td>${esc(i.l)}<small style="display:block;color:var(--ink-3);font-size:10px">${i.v==null?'미확인 · 중립':fmtVal(i.v,i.u)}</small></td><td>${Number(i.weight)}%</td><td>${i.evidence_weight_pct ?? 0}%</td><td>${points(i.contribution)}점</td></tr>${i.source_basis?`<tr><td colspan="4" style="font-size:10px;text-align:left;color:var(--ink-3);padding-top:0">${esc(i.source_basis)}</td></tr>`:''}`).join('');
+  return `<details class="cat"><summary><span class="cl">점수 계산식·지표별 기여도</span><span class="cs">${scoreText(it)}${investmentScore(it)!=null?'점':''}</span></summary><p class="hint"><b>중립 기준 ${base} + 지표별 기여도 합계</b><br>각 기여도 = 고정 가중치 × 자료 신뢰계수 × (동종 백분위 − 50) ÷ 100. 자료 품질 50%는 신뢰계수 0.5로 계산합니다. 미확인 지표는 중립에서 가감하지 않습니다.</p><table class="market-table"><thead><tr><th>지표·관측값</th><th>가중치</th><th>자료 품질</th><th>점수 기여</th></tr></thead><tbody>${rows}<tr><td colspan="3">중립 기준</td><td>${base}점</td></tr><tr><td colspan="3"><b>표시 투자 매력 점수</b></td><td><b>${scoreText(it)}${investmentScore(it)!=null?'점':''}</b></td></tr></tbody></table><p class="hint">자료가 있는 지표 비중 ${observed ?? '—'}% · 근거 충족도(자료 품질 반영) ${coverageOf(it) ?? '—'}%. 합계는 원자료로 계산하고 마지막에 반올림합니다. 권리·기본 거래 확인 대상은 기여도와 별개로 순위에서 제외됩니다.</p><p class="hint">순위는 점수로 정합니다. 임장 권고 강도는 독립된 긍정 근거와 근거 충족도까지 반영하므로 높은 점수라도 확인할 가설이 적으면 비교 임장으로 표시합니다.</p></details>`;
+}
+function invHtml(it){
+  const v=it.inv; if(!v) return '';
+  const cats=(v.cats || []).map(c=>`<details class="cat"><summary><span class="cl">${CAT_NAME[c.k] || esc(c.k)}</span><span class="cb"><i style="width:${Math.max(0,Math.min(100,c.s ?? 0))}%"></i></span><span class="cs">${c.s == null?'참고 정보':c.s+'점'}</span><span class="cn">${c.n ?? 0}/${c.t ?? 0} 지표</span></summary><div class="inds">${(c.it||[]).map(i=>`<span class="il">${esc(i.l)}</span><span class="iv">${fmtVal(i.v,i.u)}</span><span class="ip">${i.scored===false || i.p==null?'참고':Math.round(i.p)+'점'}</span>`).join('')}</div><p class="hint">${CAT_DESC[c.k]||''}</p></details>`).join('');
+  const missing=v.purchase_assessment?.missing_checks || v.missing_checks || [];
+  return `<div class="detail-section"><h4>판단에 사용한 지표</h4>${contributionHtml(it)}<div class="cats" style="margin-top:8px">${cats}</div><p class="hint">${(v.methodology?.limitations || []).map(esc).join(' ')}</p><details class="cat"><summary><span class="cl">매수 전 확인 ${missing.length}개 항목</span></summary><p class="hint">위 추천은 근거를 바탕으로 한 투자 매력과 조사 순서입니다. 실제 계약에서는 아래 세대별 조건을 확인해 판단을 완성합니다.</p><ul>${missing.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details></div>`;
+}
+// ── 원천 수집 시점과 게시 자료의 시점을 구분한다 ──
+const dateText = value => value ? String(value).slice(0,10) : '미확인';
+function sourceState(f = DATA.freshness || {}){
+  const age = f.oldest_collected_at ? (Date.now()-Date.parse(f.oldest_collected_at))/86400000 : null;
+  if(f.status === 'fresh') {
+    if(age == null || !Number.isFinite(age) || age < -1) return 'unknown';
+    if(age > (f.ttl_days ?? DATA.freshness?.ttl_days ?? 1)) return 'stale';
+  }
+  return f.status || 'unknown';
+}
+function renderSourceStatus(){
+  const f = DATA.freshness || {}, status = sourceState();
+  const labels = {fresh:'실거래 최근 수집',stale:'실거래 자료 오래됨',partial:'실거래 일부 누락',failed:'실거래 수집 실패',unknown:'실거래 수집 미확인'};
+  $('freshnessStatus').textContent = labels[status] || '자료 상태 미확인';
+  $('freshnessStatus').classList.toggle('fresh',status==='fresh');
+  $('collectedAt').textContent = dateText(f.oldest_collected_at);
+  $('latestTransaction').textContent = dateText(f.latest_transaction_at);
+  $('generatedAt').textContent = dateText(DATA.generated_at);
+  const verified = DATA.listing_source?.verified_count ?? 0;
+  $('verifiedCount').textContent = verified.toLocaleString();
+  $('listingStatus').textContent = `판매 여부 확인 ${verified.toLocaleString()}건 · 온라인 광고 표본 ${(DATA.listing_observations || []).length}건`;
+  $('sourceDetails').innerHTML = `<b>자료의 날짜는 서로 다릅니다.</b><p>수집일은 원천 응답을 받은 시점, 계약일은 거래가 이뤄진 날, 생성일은 화면용 파일을 만든 날입니다. 원천자료를 오늘 받았어도 오늘 거래나 판매 중인 매물을 뜻하지 않습니다.</p>`+
+    (f.sources || []).map(x=>`<div class="source-row"><b>${esc(x.label || x.kind)} · ${esc(labels[sourceState(x)] || '미확인')}</b>수집 ${esc(dateText(x.oldest_collected_at))} · 최근 계약 ${esc(dateText(x.latest_transaction_at))}<br>필요 파일 ${x.required_files ?? '—'} / 확보 ${x.available_files ?? '—'} · 누락 ${Array.isArray(x.missing_files)?x.missing_files.length:(x.missing_files ?? 0)}</div>`).join('')+
+    ((f.gaps || []).length ? `<p>누락·한계: ${f.gaps.map(x=>esc(typeof x==='string'?x:JSON.stringify(x))).join(' · ')}</p>` : '')+
+    `<p>이 수집 상태는 국토교통부 아파트·연립다세대 실거래 자료를 대상으로 합니다. 한국부동산원·브이월드·정비사업 등 보조자료의 갱신 시점을 뜻하지 않습니다. 별도 기준일이 없는 보조자료는 최신성 미확인입니다.</p><p>새로고침은 서버에 게시된 파일만 다시 불러옵니다. 새 원천 수집이 끝나지 않았다면 날짜는 그대로입니다.</p>`;
+}
+$('reloadData').onclick = async () => {
+  const btn = $('reloadData'); btn.disabled=true; btn.textContent='불러오는 중…';
+  try {
+    const response=await fetch('data.json?v='+Date.now(),{cache:'no-store'});
+    if(!response.ok) throw new Error('자료 응답 오류');
+    const next=await response.json(); if(!Array.isArray(next.items)) throw new Error('자료 형식 오류');
+    hydrateInvestment(next);
+    const oldStamp=DATA.generated_at; ITEMS.splice(0,ITEMS.length,...next.items); Object.assign(DATA,next); DATA.items=ITEMS;
+    $('total').textContent=ITEMS.length.toLocaleString(); if($('asof')) $('asof').textContent=DATA.as_of;
+    if(state.sel){state.sel=null;setFull(false);detail.classList.remove('open');}
+    FIN.clear(); renderSourceStatus(); update();
+    btn.textContent=oldStamp===DATA.generated_at?'현재 게시본입니다':'새 게시본 반영됨';
+  } catch(e){btn.textContent='새로고침 실패 · 재시도';}
+  finally{btn.disabled=false; setTimeout(()=>btn.textContent='게시 자료 새로고침 ↻',3500);}
+};
+const isNonRegulated = it => it.regulated === false;
+
+// ── 조건: 고치는 값(draft) 과 적용된 값(state) 을 나눈다. 검색 버튼을 눌러야 결과가 바뀐다 ──
+const PRICE_STEPS = (() => { const a = [];
+  for (let v = 0; v <= 6e8; v += 1e7) a.push(v);        // 0~6억: 1,000만 단위
+  for (let v = 6.5e8; v <= 2e9; v += 5e7) a.push(v);    // 6.5~20억: 5,000만 단위
+  for (let v = 2.5e9; v <= 1e10; v += 5e8) a.push(v);   // 20~100억: 5억 단위
+  return a; })();
+const idxOf = v => { let b = 0; for (let i = 1; i < PRICE_STEPS.length; i++) if (Math.abs(PRICE_STEPS[i]-v) < Math.abs(PRICE_STEPS[b]-v)) b = i; return b; };
+const DEFAULTS = () => ({ regions: new Set(DATA.regions), kinds: new Set(['아파트','빌라']), pmin: 0, pmax: 6e8, deals: 1, commuteMax: 2,
+  onlyFeasible: true, onlyDsr: false, onlyMonthly: false, noBlocked: false, onlyJeonse: false, firstTime: true, place: '' });
+const state = Object.assign(DEFAULTS(), { sort: 'reco', sel: null });
+let draft = DEFAULTS();
+const APPLIED = ['pmin','pmax','deals','commuteMax','onlyFeasible','onlyDsr','onlyMonthly','noBlocked','onlyJeonse','firstTime','place'];
+const TOGGLES = ['onlyFeasible','onlyDsr','onlyMonthly','noBlocked','onlyJeonse','firstTime'];
+
+function setDirty(v){ $('doSearch').classList.toggle('dirty', v); $('railSearch').classList.toggle('dirty', v);
+  $('dirtyDot').classList.toggle('on', v); $('doSearch').textContent = v ? '바뀐 조건으로 검색' : '이 조건으로 검색'; }
+const markDirty = () => setDirty(true);
+// 직전 검색 결과를 기억해 두고, 이번 검색으로 무엇이 달라졌는지 말해 준다
+let prevShown = null, prevFeasible = null, booted = false;
+function flashResult(pShown, pFeasible){
+  const el = $('countLine'), tag = $('justNote'), bits = [];
+  if (pShown != null && pShown !== prevShown) bits.push(`${pShown.toLocaleString()} → ${prevShown.toLocaleString()}곳`);
+  if (pFeasible != null && prevFeasible != null && pFeasible !== prevFeasible) bits.push(`현금 OK ${pFeasible} → ${prevFeasible}곳`);
+  tag.textContent = bits.length ? bits.join(' · ') : '반영됨 · 결과 변화 없음';
+  tag.hidden = false;
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  clearTimeout(flashResult._t); flashResult._t = setTimeout(() => { tag.hidden = true; }, 3200);
+}
+function search(closeRail){
+  if(!validateProfile()) return;
+  const pShown = prevShown, pFeasible = prevFeasible;
+  state.regions = new Set(draft.regions); state.kinds = new Set(draft.kinds);
+  if (state.sel) { state.sel = null; setFull(false); detail.classList.remove('open'); }
+  APPLIED.forEach(k => state[k] = draft[k]);
+  P = profile(); FIN.clear(); renderDsr(); setDirty(false);
+  if (closeRail) openRail(false);
+  update();
+  if (booted) flashResult(pShown, pFeasible);   // 첫 로드에서는 번쩍이지 않는다
+  booted = true;
+}
+
+const chips = $('regionChips');
+DATA.regions.forEach(r => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = r; b.dataset.region = r; b.setAttribute('aria-pressed','true');
+  b.onclick = () => { if (draft.regions.has(r)) draft.regions.delete(r); else draft.regions.add(r); b.setAttribute('aria-pressed', draft.regions.has(r)); markDirty(); }; chips.appendChild(b); });
+document.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { const k = b.dataset.kind; if (draft.kinds.has(k)) draft.kinds.delete(k); else draft.kinds.add(k); b.setAttribute('aria-pressed', draft.kinds.has(k)); markDirty(); });
+const placeEl = $('place');
+// 자동완성 목록은 자료에 실제로 있는 시군구·법정동만 넣는다. 없는 지역을 있는 것처럼 보이지 않게 한다.
+(() => { const names = new Set(); ITEMS.forEach(it => { if (it.sgg) names.add(it.sgg); if (it.dong) names.add(it.dong); });
+  const dl = $('placeList'); [...names].sort((a,b) => a.localeCompare(b,'ko')).forEach(n => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); }); })();
+const placeTerms = v => String(v || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+placeEl.addEventListener('input', () => { draft.place = placeEl.value; markDirty(); });
+placeEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); search(true); } });
+const pminEl = $('pmin'), pmaxEl = $('pmax');
+pminEl.max = pmaxEl.max = PRICE_STEPS.length - 1;
+function priceLab(){ $('priceLab').textContent = `${draft.pmin ? won(draft.pmin) : '0'} ~ ${won(draft.pmax)}`; }
+pminEl.oninput = () => { const i = +pminEl.value; if (i > +pmaxEl.value) { pmaxEl.value = i; draft.pmax = PRICE_STEPS[i]; } draft.pmin = PRICE_STEPS[i]; priceLab(); markDirty(); };
+pmaxEl.oninput = () => { const i = +pmaxEl.value; if (i < +pminEl.value) { pminEl.value = i; draft.pmin = PRICE_STEPS[i]; } draft.pmax = PRICE_STEPS[i]; priceLab(); markDirty(); };
+$('deals').oninput = e => { draft.deals = +e.target.value; $('dealsLab').textContent = `${draft.deals}건+`; markDirty(); };
+$('commuteMax').onchange = e => { draft.commuteMax=Number(e.target.value); markDirty(); };
+TOGGLES.forEach(k => $(k).onchange = e => { draft[k] = e.target.checked; markDirty(); });
+F.forEach(k => { $(k).addEventListener('input', () => { $(k).setCustomValidity(''); renderDsr(); markDirty(); });
+  $(k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); search(true); } }); });
+$('sort').onchange = e => { state.sort = e.target.value; update(); };
+$('sort').value = state.sort;   // 기본값(추천순)을 select 에도 반영  // 정렬은 조건이 아니라 보기 방식이라 바로 반영한다
+$('doSearch').onclick = () => search(true);
+$('railSearch').onclick = () => search(true);
+$('resetCond').onclick = () => { draft = DEFAULTS(); syncControls(); search(false); };
+$('saveProfile').onclick = () => { if(!validateProfile()) return; search(false); try { localStorage.setItem('jamsil.profile', JSON.stringify(Object.assign({}, P, { first: state.firstTime }))); flash($('saveProfile'), '저장됨'); } catch(e){ flash($('saveProfile'), '저장 실패 · 브라우저 설정 확인'); } };
+$('clearProfile').onclick = () => { try { localStorage.removeItem('jamsil.profile'); } catch(e){} F.forEach(k => $(k).value = ''); search(false); };
+// 자금이 담긴 해시 링크를 실수로 보내는 일이 없도록, 복사는 항상 해시 없는 주소로만 한다
+$('shareLink').onclick = async () => {
+  const url = location.origin + location.pathname;
+  try { await navigator.clipboard.writeText(url); flash($('shareLink'), '복사됨'); }
+  catch(e) { window.prompt('이 주소를 복사해서 보내세요 (자금은 들어 있지 않습니다)', url); }
+};
+function syncControls(){
+  placeEl.value = draft.place || '';
+  document.querySelectorAll('.chip[data-region]').forEach(b => b.setAttribute('aria-pressed', draft.regions.has(b.dataset.region)));
+  document.querySelectorAll('[data-kind]').forEach(b => b.setAttribute('aria-pressed', draft.kinds.has(b.dataset.kind)));
+  pminEl.value = idxOf(draft.pmin); pmaxEl.value = idxOf(draft.pmax); priceLab();
+  $('deals').value = draft.deals; $('dealsLab').textContent = `${draft.deals}건+`;
+  $('commuteMax').value = String(draft.commuteMax);
+  TOGGLES.forEach(k => $(k).checked = draft[k]);
+}
+function applyProfile(o){ F.forEach(k => { if (o[k] != null) $(k).value = o[k]; }); if (o.first != null) draft.firstTime = !!o.first; }
+
+function filtered(){
+  const hasCash = P.cash != null;
+  const terms = placeTerms(state.place);
+  const hitsPlace = it => !terms.length || terms.some(t => String(it.sgg||'').toLowerCase().includes(t)
+    || String(it.dong||'').toLowerCase().includes(t) || String(it.apt||'').toLowerCase().includes(t));
+  const out = ITEMS.filter(it => state.regions.has(it.region) && state.kinds.has(it.kind) && hitsPlace(it)
+    && it.price >= state.pmin && it.price <= state.pmax && it.deals >= state.deals
+    && (!state.commuteMax || (it.commute != null && it.commute >= 1 && it.commute <= state.commuteMax))
+    && (!state.onlyFeasible || !hasCash || feasible(it))
+    && (!state.onlyDsr || (P.income > 0 && dsrOf(it) <= 0.40001))
+    && (!state.onlyMonthly || (P.monthlyBudget != null && fin(it).monthlyFits === true))
+    && (!state.noBlocked || grade(it) !== 'blocked')
+    && (!state.onlyJeonse || isNonRegulated(it)));
+  // 자금·지역·가격 조건을 통과한 후보끼리 투자 매력의 순위를 다시 매긴다.
+  const score=it=>investmentScore(it) ?? -1;
+  const byPriority=(a,b)=>score(b)-score(a) || String(a.id).localeCompare(String(b.id));
+  const priority=[...out].sort(byPriority); FILTERED_POOL=out.length; FILTERED_RANK=new Map(); DISPLAY_RANK=new Map();
+  for(let start=0;start<priority.length;){
+    let end=start+1; const value=investmentScore(priority[start]);
+    if(value!=null) while(end<priority.length && investmentScore(priority[end])===value) end++;
+    for(let i=start;i<end;i++) FILTERED_RANK.set(priority[i].id,{scoreRank:value==null?null:start+1,position:i+1,tieCount:end-start});
+    start=end;
+  }
+  const KEYS={
+    // 추천순은 이름대로 '최상위'를 먼저 보여 준다. 점수만 높고 근거가 모자란 후보가
+    // 맨 앞을 차지하면 최상위 등급을 만든 뜻이 없어진다. 그 아래는 점수 순 그대로다.
+    reco:it=>[grade(it)==='top'?0:1,-score(it)],inv:it=>[-score(it)],
+    budget:it=>[feasible(it)===true?0:feasible(it)===false?2:1,fin(it).monthlyFits===false?1:0,-score(it)],
+    cash:it=>[fin(it).cash],price:it=>[it.price],recent:it=>[-(Date.parse(it.transaction_date || '')||0)],deals:it=>[-it.deals]
+  };
+  const key=KEYS[state.sort]||KEYS.reco;
+  const sorted=out.sort((a,b)=>{const ka=key(a),kb=key(b);for(let i=0;i<ka.length;i++)if(ka[i]!==kb[i])return ka[i]-kb[i];return String(a.id).localeCompare(String(b.id));});
+  const label=state.sort==='reco'?'추천':state.sort==='inv'?'투자점수':state.sort==='budget'?'예산 적합':state.sort==='cash'?'필요현금':state.sort==='price'?'거래가격':state.sort==='recent'?'최근 거래':'거래 건수';
+  sorted.forEach((it,index)=>DISPLAY_RANK.set(it.id,{position:index+1,label}));
+  return sorted;
+}
+
+// ── 지도 (Leaflet + CARTO 래스터 타일) ──
+// 아티팩트 시절엔 구운 그림 한 장에 좌표를 선형 배치했다. 여기선 진짜 지도라 확대하면 골목·건물명이 나온다.
+const map = window.L ? L.map('map', { preferCanvas: true, zoomControl: false, attributionControl: true, maxZoom: 19 })
+  .setView([37.55, 127.02], 11) : null;
+if (!map) {
+  $('map').innerHTML = '<p style="padding:32px;line-height:1.8">지도를 불러오지 못했습니다.<br>조건 검색과 후보 상세는 계속 사용할 수 있습니다.</p>';
+  document.querySelector('.maptools').style.display = 'none';
+}
+// CARTO 무료 타일은 2025년부터 키를 요구한다 → 키 없이 쓸 수 있는 OSM 표준 타일. 한글 지명이 그대로 나온다.
+if (map) L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '지도 © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 기여자'
+}).addTo(map);
+if (map) map.attributionControl.setPrefix('');   // Leaflet 기본 접두사 제거, 출처만 남긴다
+const layer = map ? L.layerGroup().addTo(map) : null;
+// 정비사업 구역 경계를 그리는 층. 고른 후보의 구역만 그린다(전부 그리면 지도가 읽히지 않는다).
+const zoneLayer = map ? L.layerGroup().addTo(map) : null;
+function drawZone(it){
+  if (!zoneLayer) return;
+  zoneLayer.clearLayers();
+  const zs = (it && it.seoul_zone && it.seoul_zone.zones) || [];
+  for (const z of zs) {
+    if (!z.rings || !z.rings.length) continue;
+    const inside = z.relation === '포함';
+    const poly = L.polygon(z.rings, {
+      color: inside ? '#B8322F' : '#C98A1B', weight: 2, opacity: .9,
+      fillColor: inside ? '#B8322F' : '#C98A1B', fillOpacity: .12, interactive: false,
+    });
+    poly.bindTooltip(`${esc(z.zone || '정비구역')} · ${esc(z.stage || '단계 미상')}`, { className: 'mktip', sticky: true });
+    poly.addTo(zoneLayer);
+  }
+}
+const MARKERS = new Map();
+let fitBounds = null;
+// 맞추기 전에 컨테이너 크기를 다시 읽는다. 크기가 0 이면 축척이 무한대로 나오므로 아예 건너뛴다.
+function fit(){ if (!map) return; map.invalidateSize({ animate: false });
+  const el = map.getContainer();
+  if (!el.clientWidth || !el.clientHeight) return;
+  if (fitBounds && fitBounds.isValid()) map.fitBounds(fitBounds, { padding: [24, 24], maxZoom: 15 }); }
+$('zin').onclick = () => map?.zoomIn();
+$('zout').onclick = () => map?.zoomOut();
+$('zfit').onclick = fit;
+const relayout = () => map?.invalidateSize({ animate: false });
+window.addEventListener('resize', relayout);
+window.addEventListener('orientationchange', () => setTimeout(relayout, 250));
+// 첫 화면 맞추기. 컨테이너 크기가 0 인 순간에 재면 Leaflet 이 축척을 무한대로 계산해 최대 확대로 튄다.
+// 그래서 크기가 잡힐 때까지 프레임을 넘기며 기다린다. 사용자가 이미 지도를 움직였으면 건드리지 않는다.
+let userMoved = false;
+if (map) map.on('dragstart', () => { userMoved = true; });
+if (map) map.getContainer().addEventListener('wheel', () => { userMoved = true; }, { passive: true });
+function initialFit(tries){
+  if (!map || userMoved) return;
+  const el = map.getContainer();
+  if ((!el.clientWidth || !el.clientHeight) && (tries || 0) < 30) {
+    return requestAnimationFrame(() => initialFit((tries || 0) + 1));
+  }
+  fit();
+}
+
+function drawMarkers(list){
+  if (!map) return;
+  if (zoneLayer && !state.sel) zoneLayer.clearLayers();   // 선택이 풀리면 구역선도 지운다
+  const ids = new Set(list.map(it => it.id));
+  layer.clearLayers(); MARKERS.clear();
+  const pts = [];
+  // 후보가 아닌 점도 흐리게 깔아 둔다 — 조건을 풀면 어디에 뭐가 있는지 감이 온다
+  const sorted = [...ITEMS].sort((a, b) => (ids.has(a.id) - ids.has(b.id)) || (a.deals - b.deals));
+  for (const it of sorted) {
+    const on = ids.has(it.id), sel = state.sel === it.id;
+    const fill = it.kind === '빌라' ? '#C98A1B' : '#2F5D8A';
+    if (!Number.isFinite(it.lat) || !Number.isFinite(it.lon)) continue;
+    const m = L.circleMarker([it.lat, it.lon], {
+      radius: on ? 4 + Math.min(6, Math.sqrt(it.deals)) : 2.6,
+      color: sel ? '#B8322F' : '#ffffff', weight: sel ? 2.5 : 1.2,
+      fillColor: fill, fillOpacity: on ? .92 : .26, opacity: on ? 1 : .35,
+      dashArray: blocked(it) ? '2 2' : null, interactive: on,
+    });
+    if (on) {
+      pts.push([it.lat, it.lon]);
+      m.bindTooltip(`${esc(it.dong)} ${esc(it.apt)} <span class="num">${won(it.price)}</span>`, { className: 'mktip', direction: 'top', offset: [0, -6] });
+      m.on('click', () => select(it.id, true));
+      MARKERS.set(it.id, m);
+    }
+    m.addTo(layer);
+  }
+  fitBounds = pts.length ? L.latLngBounds(pts) : null;
+}
+
+// ── 목록 ──
+const itemsEl = $('items');
+function tagsFor(it){
+  const f=fin(it),tags=[];
+  if(P.cash!=null) tags.push(`<span class="tag ${feasible(it)?'ok':'bad'}">${feasible(it)?'현금 조건 충족':'현금 '+won(f.cash+(P.reserve||0)-P.cash)+' 부족'}</span>`);
+  if(!f.dsrKnown) tags.push('<span class="tag">소득 입력 전 · 대출 가정</span>');
+  if(f.monthlyFits!=null) tags.push(`<span class="tag ${f.monthlyFits?'ok':'bad'}">월 상한 ${f.monthlyFits?'이내':'초과'}</span>`);
+  return tags.join('');
+}
+function cardReason(it){const thesis=thesisList(it)[0];return thesis?.mechanism || recoOf(it)?.reasons?.[0] || `거래 ${it.deals}건을 바탕으로 실제 호가를 비교할 후보입니다.`;}
+function cardRisk(it){const pz=it.parcel_zone;if(pz&&(pz.verdict==='zone_unverified'||pz.verdict==='pre_designation'))return '정비 관련 구역 안이지만 고시 원문 미확인 — 상세의 고시번호로 수기 확인하세요.';if(pz&&pz.verdict==='conservation')return '보존형 주거환경관리 구역 — 재개발 대상이 아닙니다.';return recoOf(it)?.limitations?.find(text=>typeof text==='string' && text.trim().length>0) || thesisList(it).find(t=>t.invalidation)?.invalidation || '실제 호가·수리비가 비교 사례보다 높으면 매력이 줄어듭니다.';}
+function naverPropertyLink(it){
+  if(it.link && /^https:\/\/(fin\.land\.naver\.com|new\.land\.naver\.com|land\.naver\.com|m\.land\.naver\.com)\//.test(it.link)) return {url:it.link,label:it.link_kind==='단지'?'네이버 부동산 단지':'네이버 부동산'};
+  const q=(it.apt||'').replace(/\([^)]*\)/g,'').trim()||it.apt;
+  return {url:it.naver_search||`https://m.land.naver.com/search/result/${encodeURIComponent(q)}`,label:'네이버 부동산 검색'};
+}
+function addressOf(it){ return it.address || `${it.sgg} ${it.dong} ${it.apt}`; }
+// 링크가 엉뚱한 곳으로 가는 때가 있어 주소를 그대로 복사할 수 있게 한다(대표님 요청 2026-09-12).
+function copyAddress(btn,text){
+  const done=()=>{const t=btn.textContent;btn.textContent='복사됨 ✓';setTimeout(()=>{btn.textContent=t;},1500);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(()=>fallback());}
+  else fallback();
+  function fallback(){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){btn.textContent='복사 실패 — 길게 눌러 복사하세요';}ta.remove();}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-copy-addr]');if(b){e.preventDefault();copyAddress(b,b.getAttribute('data-copy-addr'));}});
+function externalLinks(it, compact=false){
+  const naver=naverPropertyLink(it),hoga=hogangnonoLink(it),addr=addressOf(it);
+  return `<a href="${esc(naver.url)}" target="_blank" rel="noopener noreferrer">${naver.label} ↗</a><a href="${esc(hoga.url)}" target="_blank" rel="noopener noreferrer">${hoga.label} ↗</a>${compact?'':`<button class="btn ghost" type="button" data-copy-addr="${esc(addr)}" title="${esc(addr)}">주소 복사</button><a href="https://map.naver.com/p/search/${encodeURIComponent(addr)}" target="_blank" rel="noopener noreferrer">네이버 지도 ↗</a>`}`;
+}
+const LIST_PAGE_SIZE = 40;
+let renderedCandidates = [], renderedCount = 0;
+function renderList(list, append = false){
+  const previousScroll = itemsEl.scrollTop, previousPageX = window.scrollX, previousPageY = window.scrollY;
+  if (!append) { renderedCandidates = list; renderedCount = 0; itemsEl.innerHTML = ''; }
+  $('shown').textContent = list.length.toLocaleString();
+  const fe = P.cash != null ? list.filter(feasible).length : null;
+  prevShown = list.length; prevFeasible = fe;
+  $('cashFitCount').textContent = fe == null ? '미입력' : fe.toLocaleString()+'곳';
+  $('feasibleNote').textContent = P.cash == null ? '자금 미입력 · 가격·근거만 비교 중' : `현금 ${won(P.cash)} · 예비비 ${won(P.reserve||0)}${P.income?' · 소득 반영 추정':' · 소득 미입력으로 대출은 가정'}`;
+  if (!list.length) { itemsEl.innerHTML = '<div class="empty"><b>적용한 조건에 맞는 후보가 없습니다.</b>가격 범위·지역을 넓히거나 필터에 필요한 자금·소득·월 상한을 입력한 후 다시 검색하세요.</div>'; return; }
+  const start = renderedCount, end = Math.min(list.length, start + LIST_PAGE_SIZE);
+  const cards = list.slice(start,end).map(it=>{const f=fin(it),rec=recoOf(it)||{},thesis=thesisList(it)[0];return `
+    <article class="item${state.sel===it.id?' sel':''}" data-id="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(it.dong+' '+it.apt)} 상세 보기">
+      <div class="card-ranking"><span class="rank-pill">${rankText(it)}<small>조건 내</small></span><span class="action-pill ${recoClass(it)}">${esc(assessmentLabel(it))}</span><span class="rank-score">투자 매력 ${scoreText(it)}${investmentScore(it)!=null?'점':''}</span></div>
+      <div class="card-title"><div class="name">${esc(it.apt)}</div><div class="where">${esc(it.sgg)} ${esc(it.dong)} · ${esc(it.kind)} · ${Math.round(it.area)}㎡ · ${it.year ?? '준공 미확인'}${it.year?'년':''}</div></div>
+      <div class="card-numbers"><div><small>90일 거래 중위 · 호가 아님</small><div class="price">${won(it.price)}</div></div><div><small>필요 현금 · 대출·비용 가정</small><div class="cash-value">${won(f.cash)}</div><div class="cash">월 부담 ${won(f.monthlyTotal ?? f.monthly)}</div></div></div>
+      <div class="card-assessment">${tagsFor(it)}</div>
+       <div class="investment-headline">${esc(thesis?.title || rec.reasons?.[0] || '거래·입지 비교 후보')}</div>
+       ${scoreDriversHtml(it)}
+      ${thesis?.evidence?.length?`<div class="card-reason"><span class="key">근거</span><span>${thesis.evidence.slice(0,2).map(esc).join(' · ')}</span></div>`:''}
+      <div class="card-reason"><span class="key">판단</span><span>${esc(cardReason(it))}</span></div>
+      <div class="card-reason risk"><span class="key">변수</span><span>${esc(cardRisk(it))}</span></div>
+      ${propertyFacts(it)}
+      <p class="card-next"><b>다음</b> ${esc(actionFor(it))}</p>
+      <div class="card-links">${externalLinks(it,true)}<small>최근 계약 ${dateText(it.transaction_date)}</small></div>
+    </article>`;}).join('');
+  itemsEl.querySelector('[data-load-more-footer]')?.remove();
+  itemsEl.insertAdjacentHTML('beforeend', cards + `<div class="empty" data-load-more-footer><div>${end.toLocaleString()} / ${list.length.toLocaleString()}곳 표시</div>${end < list.length ? `<button class="btn primary" data-load-more style="margin-top:10px;padding:10px 24px">다음 ${Math.min(LIST_PAGE_SIZE,list.length-end)}곳 더 보기</button>` : '<div>조건에 맞는 후보를 모두 표시했습니다.</div>'}</div>`);
+  renderedCount = end;
+  if (append) {
+    itemsEl.scrollTop = previousScroll;
+    window.scrollTo(previousPageX, previousPageY);
+    itemsEl.querySelectorAll('.item')[start]?.focus({ preventScroll: true });
+  } else itemsEl.scrollTop = 0;
+}
+  itemsEl.addEventListener('click', e => { if(e.target.closest('[data-load-more]')) { renderList(renderedCandidates, true); return; } if(e.target.closest('a')) return; const el = e.target.closest('.item'); if (el) select(el.dataset.id, false); });
+  itemsEl.addEventListener('keydown', e => { if(e.target.closest('a,button')) return; if (e.key === 'Enter' || e.key === ' ') { const el = e.target.closest('.item'); if (el) { e.preventDefault(); select(el.dataset.id, false); } } });
+  document.addEventListener('click', e => { const b=e.target.closest('[data-observed-candidate]'); if(b){ const id=b.getAttribute('data-observed-candidate'); if(id && ITEMS.some(it=>it.id===id)){ select(id,true); detail.scrollIntoView({block:'nearest',behavior:'smooth'}); } } });
+
+// ── 상세 ──
+const detail = $('detail');
+let fullOpen = false;
+function setFull(on){
+  fullOpen = on; detail.classList.toggle('full', on);
+  detail.setAttribute('role',on?'dialog':'region'); detail.setAttribute('aria-modal',String(on));
+  document.body.style.overflow=on?'hidden':'';
+  const b = detail.querySelector('.expand');
+  if (b) { b.textContent = on ? '접어 보기' : '전체 화면'; b.title = on ? '작게 보기' : '크게 보기'; b.setAttribute('aria-label', b.title); }
+  if (on) detail.scrollTop = 0;
+}
+function select(id, fromMap){
+  state.sel = state.sel === id ? null : id;
+  document.querySelectorAll('.item').forEach(el => el.classList.toggle('sel', el.dataset.id === state.sel));
+  document.querySelectorAll('.mk').forEach(g => g.classList.toggle('sel', g.dataset.id === state.sel));
+  if (!state.sel) { setFull(false); detail.classList.remove('open'); detail.innerHTML = ''; return; }
+  const it = ITEMS.find(x => x.id === state.sel);
+  drawZone(it);                                   // 고른 후보의 정비사업 구역 경계를 지도에 그린다
+  if (map && !fromMap && Number.isFinite(it.lat) && Number.isFinite(it.lon)) { // 목록에서 골랐으면 지도가 그 단지로 간다
+    map.setView([it.lat, it.lon], Math.max(map.getZoom(), 16), { animate: true });
+    const m = MARKERS.get(it.id); if (m) m.openTooltip();
+  } else { const el = itemsEl.querySelector(`.item[data-id="${CSS.escape(id)}"]`); if (el) el.scrollIntoView({ block: 'nearest' }); }
+  const f = fin(it), fe = feasible(it), d = dsrOf(it), dm = debtMonthly(P);
+  const gap=P.cash == null?null:f.cash+(P.reserve||0)-P.cash;
+  const verdict=P.cash==null?'<div class="verdict warn">내 예산 판단 전 · 현금과 소득을 입력하고 검색해 주세요.</div>':`<div class="verdict ${fe?'ok':'bad'}"><b>${fe?'현금 조건 충족':'현금 '+won(gap)+' 부족'}</b><br>필요현금 ${won(f.cash)} + 남겨둘 예비비 ${won(P.reserve||0)} ${fe?'≤':'>'} 보유현금 ${won(P.cash)}${!f.dsrKnown?'<br>소득을 입력하지 않아 대출 한도는 LTV 가정입니다.':''}</div>`;
+  const dsrLine=d==null?'<div class="verdict warn">소득 미입력 · DSR에 따른 대출 축소를 아직 반영하지 못했습니다.</div>':`<div class="verdict ${d<=.40001?'ok':'bad'}">DSR 추정 ${Number.isFinite(d)?(d*100).toFixed(1)+'%':'산정 불가'} · ${f.loanReduced?'소득·기존 부채를 반영해 대출을 '+won(f.ltvLoan-f.loan)+' 줄였습니다.':'입력한 심사 가정 반영.'}<br>실제 대출 승인이나 보장된 한도를 뜻하지 않습니다.</div>`;
+  const ZV={redevelopment_confirmed:['','필지가 정비구역 안 · 고시 원문 확인'],zone_unverified:['warn','필지가 정비 관련 구역 안 · 고시 원문 미확인 — 아래 고시를 직접 확인하세요'],pre_designation:['warn','건축허가·착공제한지역 안 · 구역 지정 전일 수 있음 — 아래 고시를 직접 확인하세요'],conservation:['bad','보존형 주거환경관리 구역 · 재개발 대상이 아님'],released:['bad','해제 관련 고시가 있는 구역'],outside:['','필지 토지이용계획상 정비 관련 구역 밖'],unknown:['','필지를 특정하지 못해 구역을 조회하지 못함']};
+  const pz=it.parcel_zone, zv=pz&&ZV[pz.verdict];
+  const zoneBox=zv?`<div class="verdict ${zv[0]}"><b>${esc(zv[1])}</b><br>필지 ${esc(pz.jibun||'미상')} · 토지이용계획 갱신 ${esc(pz.updated||'미상')}${(pz.documents||[]).map(d=>`<br><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.number||'고시')} · ${esc((d.title||'').slice(0,70))}</a> (${esc(d.date||'')})${d.pdf_summary?`<br><span style="color:var(--ink-3)"><b>고시문 본문</b> ${esc(d.pdf_summary)}</span>`:''}${d.pdf_facts&&d.pdf_facts.first_notice_date?`<br><span style="color:var(--ink-3)">이 구역의 첫 고시 ${esc(d.pdf_facts.first_notice_date)} · 본문에 적힌 관련 고시 ${d.pdf_facts.notice_count}건</span>`:''}${!d.pdf_summary&&d.summary?`<br><span style="color:var(--ink-3)">원문 요약 · ${esc(d.summary)}</span>`:''}${d.excerpt?`<br><span style="color:var(--ink-3)">원문 첫 문단 “${esc(d.excerpt)}”</span>`:''}${d.office?`<br><span style="color:var(--ink-3)">담당 ${esc(d.office)}${d.attachment?` · 첨부 ${esc(d.attachment)}`:''}${d.reading_room?`<br>원문 열람 ${esc(d.reading_room)}`:''}</span>`:''}`).join('')}${(pz.manual||[]).map(m=>`<br>수기 확인: ${esc(m)}`).join('')}${(pz.zones||[]).filter(z=>(z.links||[]).length).map(z=>`<br>원문 찾을 곳 (${esc(z.issuer||'')} 제${esc(z.gosi||'')}호): `+z.links.map(l=>`<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)} ↗</a>`).join(' · ')).join('')}<br><span style="color:var(--ink-3)">브이월드 토지이용계획은 고시보다 늦게 반영될 수 있습니다. 조합원 자격·분담금은 별도 확인입니다.</span></div>`:'';
+  // 서울 정비사업 구역 도형 대조(좌표 기준). 서울 밖이거나 좌표가 없으면 아예 표시하지 않는다.
+  const sz=it.seoul_zone, szl=(sz&&sz.zones||[]).filter(z=>z.zone||z.stage);
+  const stageBox=szl.length?`<div class="verdict ${sz.matched_by==='polygon'?'ok':'warn'}"><b>정비사업 구역 ${sz.matched_by==='polygon'?'안에 있음':'구역 경계에 인접'}</b>`+szl.map(z=>`<br>${esc(z.zone||'구역명 미상')}${z.kind?' · '+esc(z.kind):''} · 현재 <b>${esc(z.stage||'단계 미상')}</b>${z.stage_date?` (${esc(z.stage_date)}부터 ${z.stage_months}개월째)`:''}${z.area_m2?` · 구역면적 ${Math.round(z.area_m2).toLocaleString()}㎡`:''}${z.road_ahead?`<br><span style="color:var(--ink-3)"><b>준공까지 남은 기간(참고)</b> 단계별 중앙값을 더하면 약 ${(z.road_ahead.median_months_sum/12).toFixed(1)}년 (${z.road_ahead.steps.map(s=>`${esc(s.from)}→${esc(s.to)} ${s.median_months}개월`).join(' · ')})${z.road_ahead.missing_links?` · 자료 없는 구간 ${z.road_ahead.missing_links}개는 빠졌습니다`:''}. ${esc(z.road_ahead.basis)}</span>`:''}${z.next_step?`<br><span style="color:var(--ink-3)"><b>다음 단계까지 실측</b> ${esc(z.next_step.transition)} · 중앙값 ${z.next_step.median_months}개월(${(z.next_step.median_months/12).toFixed(1)}년) · 25~75% ${z.next_step.p25_months}~${z.next_step.p75_months}개월 · 표본 ${z.next_step.n}건. ${esc(z.next_step.basis)}</span>`:''}${z.peer_median_months?`<br><span style="color:var(--ink-3)">서울에서 같은 종류·같은 단계인 사업 ${z.peer_n}곳은 그 단계에 지금까지 중앙값 ${z.peer_median_months}개월 머물러 있습니다. 진행 중인 사업만 센 값이라 실제 소요 기간보다 짧고, 남은 기간을 뜻하지 않습니다.</span>`:''}${z.relation==='경계 인접'?`<br><span style="color:var(--ink-3)">단지 대표 좌표가 구역 경계에서 ${z.distance_m}m 떨어져 있습니다. 편입 여부는 구역도로 확인하세요.</span>`:''}`).join('')+`<br><span style="color:var(--ink-3)">출처 ${esc(sz.source||'')} · 조회 ${esc((sz.checked_at||'').slice(0,10))}. 단지 대표 좌표 하나로 대조한 결과이며, 조합원 자격·분담금은 별도 확인입니다.</span></div>`:'';
+  const parcelBox=parcelBlocked(it)?`<div class="verdict bad"><b>권리 확인 전 제외 · 사업 대표 지번과 일치</b><br>${esc(it.parcel.jibun)} · ${(it.parcel.blocked||[]).map(esc).join('<br>')}<br>지위양도 제한 단계로 표시된 사업과 대조됩니다. 구역 경계·사업 종류·예외 요건·해당 세대의 권리를 확인하기 전 매수판단을 진행하지 않습니다.</div>`:parcelEntry(it)?`<div class="verdict warn"><b>정비사업 대표 지번과 일치 · 조합원 자격 미확인</b><br>${(it.parcel.entry||[]).map(esc).join('<br>')}<br>구역 편입, 조합원 지위, 추가분담금은 별도 확인이 필요합니다.</div>`:'<div class="detail-source">이 후보에서 대조된 사업 대표 지번이 없습니다. 사업 대표 지번 하나와 대조한 결과이므로 구역 밖이거나 권리가 안전하다는 뜻은 아닙니다.</div>';
+  const neighborhood=[...(it.redev?.entry||[]).map(x=>'추진 단계 참고 · '+x),...(it.redev?.blocked||[]).map(x=>'지위양도 제한 단계 참고 · '+x)];
+  const far=it.far_cap&&it.far_est?`추정 ${Math.round(it.far_est)}% / 적용 상한 참고 ${it.far_cap}%`:it.zone?`${it.zone} · 상한 참고 ${it.far_cap ?? '미확인'}%`:'미확인';
+  detail.innerHTML = `
+    <div class="tools"><button class="expand" aria-label="크게 보기" title="크게 보기">전체 화면</button><button class="close" aria-label="닫기" title="닫기">×</button></div>
+    <h3 id="detailTitle">${esc(it.apt)}</h3>
+    <div class="sub">${esc(it.sgg)} ${esc(it.dong)} · ${esc(it.kind)} · 전용 ${Math.round(it.area)}㎡ · ${it.year??'준공 미확인'}${it.year?'년 준공':''}</div>
+    <div class="detail-source"><b>실거래 후보 · 판매 여부와 현재 호가 미확인</b><br>표시 가격 ${won(it.price)} = 최근 90일 거래 중위 · ${it.deals}건<br>최근 계약일 ${dateText(it.transaction_date)} · 원천 수집 ${dateText(it.source_collected_at)}${it.latest_transaction_price != null?`<br>가장 최근 거래 ${won(it.latest_transaction_price)}${it.latest_transaction_area != null?' / '+it.latest_transaction_area+'㎡':''}`:''}<br>거래일·중위가격·대표 면적은 개별 판매 세대의 조건과 다를 수 있습니다.</div>
+    ${thesisHtml(it)}
+    <h4>내 예산에 맞는가</h4>${verdict}${dsrLine}
+    ${f.monthlyFits == null?'':`<div class="verdict ${f.monthlyFits?'ok':'bad'}">월 부담 ${won(f.monthlyTotal)} · 입력한 상한 ${won(P.monthlyBudget)} ${f.monthlyFits?'이내':'초과'}</div>`}
+    <h4>예상 자금 흐름</h4>
+    <div class="flow">
+      <span class="k">거래 중위가격 · 호가 아님</span><span class="v">${won(it.price)}</span>
+      <span class="k">주담대 추정 (${state.firstTime?'생애최초 가정':'일반 가정'})</span><span class="v">−${won(f.loan)}</span>
+      <span class="k">취득세·교육세 등 · 감면 미반영</span><span class="v">+${won(f.tax)}</span>
+      <span class="k">중개보수 상한</span><span class="v">+${won(f.fee)}</span>
+      <span class="k">중개보수 부가세 가정</span><span class="v">+${won(f.feeVat)}</span>
+      <span class="k">등기·이사 예비 및 추가 비용</span><span class="v">+${won(f.misc)}</span>
+      <span class="tot"><span>매수에 필요한 현금</span><span class="num">${won(f.cash)}</span></span>
+      <span class="k">별도로 남겨둘 예비비</span><span class="v">${won(P.reserve||0)}</span>
+    </div>
+    <h4>월 부담과 금리 가정</h4>
+    <div class="flow">
+      <span class="k">주담대 원리금 (${f.mortgageRate}% · ${f.loanYears}년)</span><span class="v">${won(f.monthly)}</span>
+      <span class="k">기존 마통 이자 · 한도 전액 사용 가정</span><span class="v">${won(f.debtInterest)}</span>
+      <span class="k">관리비 가정</span><span class="v">${it.mgmt==null?'미확인':won(it.mgmt)}</span>
+      <span class="tot"><span>월 부담 합계</span><span class="num">${won(f.monthlyTotal)}</span></span>
+      <span class="k">금리 ${f.stressRate}%일 때 월 부담</span><span class="v">${won(f.stressMonthlyTotal)}</span>
+    </div>
+    <p class="hint">${esc(f.assumptions || '')}</p>
+    ${invHtml(it)}
+    <div id="investmentScenario"></div>
+    <h4>주변과 가격·거래 흐름 비교</h4>${marketHtml(it)}
+    <div class="detail-section"><h4>정비사업·입지 참고 근거</h4><dl class="kv">
+      <dt>현재 용적률</dt><dd class="txt">${farText(it)}${it.far_collected_at?' · 수집 '+dateText(it.far_collected_at):''}</dd>
+      ${it.far_actual!=null?`<dt>대장값의 대상 범위</dt><dd class="txt">${it.far_identity_scope==='complex_recap'?'집합건축물 총괄표제부 참고':'해당 지번 대표 건물 참고'} · ${it.far_identity_verified?'대상 일치 확인':'대상 일치 재확인 필요'}${it.far_basis?' · '+esc(it.far_basis):''}</dd>`:''}
+      <dt>용적률 상한 참고</dt><dd class="txt">${it.far_cap!=null?it.far_cap+'%':'미확인'}${it.zone?' · '+esc(it.zone):''}${farDifference(it)!=null?' · 현재와 차이 '+Math.round(farDifference(it))+'%p':''}</dd>
+      <dt>대지지분</dt><dd class="txt">${landText(it)}${it.land_share!=null?' · '+esc(it.land_share_basis || '신고 표본 중위'):''}${it.land_share_sample_count!=null?' · 표본 '+it.land_share_sample_count+'건':''}</dd>
+      ${it.station?`<dt>가까운 역</dt><dd class="txt">${esc(it.station.name)} · 직선 ${it.station.dist_m.toLocaleString()}m</dd>`:''}
+      <dt>잠실 통근 분류</dt><dd class="txt">${it.commute!=null?'분류 '+it.commute+' · 도시철도 노선 기준 추정':'미분류'} · 실측 전</dd>
+      ${it.households!=null?`<dt>대장상 세대수</dt><dd class="txt">${it.households}세대 · ${it.households_scope==='building'?'조회 건물 기준 · 전체 단지 합계 아님':'대장 범위 확인 필요'}</dd>`:''}
+      <dt>수집 거래 표본의 노후 비중</dt><dd class="txt">${it.old_share != null?Math.round(it.old_share)+'%가 준공 30년 이상 · 동 전체 건물 비율 아님':'미확인'}</dd>
+      ${it.land_price?`<dt>개별공시지가</dt><dd class="txt">${it.land_price.unit_won_per_m2.toLocaleString()}원/㎡ · ${esc(it.land_price.gosi)} 공시</dd>`:''}
+      ${it.land_price?.land_ratio_pct != null?`<dt>공시지가×지분 / 거래가</dt><dd>${Math.round(it.land_price.land_ratio_pct)}% · 평가액 아님</dd>`:''}
+      ${it.jeonse != null?`<dt>과거 전세가율</dt><dd>${Math.round(it.jeonse)}% · 현재 보증금 아님</dd>`:''}
+      <dt>거래 표본</dt><dd>최근 90일 ${it.deals}건</dd>
+      <dt>규제지역 분류</dt><dd class="txt">${it.regulated===true?'규제':it.regulated===false?'비규제':'미확인'} · 적용 시점·대출 상품 별도 확인</dd>
+    </dl>${it.far_cap_note?`<p class="hint">${esc(it.far_cap_note)}</p>`:''}<p class="hint">용적률 여유·노후도·공시지가 비중만으로 재개발 수익성이나 사업 착수 시기를 예측하지 않습니다. 역 거리는 도보 경로나 실제 출퇴근 시간이 아닙니다.</p>
+    ${stageBox}
+    ${zoneBox}
+    ${parcelBox}
+    <details class="cat"><summary><span class="cl">같은 동 정비사업 · ${neighborhood.length}건</span></summary>${neighborhood.length?'<ul>'+neighborhood.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<p class="hint">수집된 공개자료에서 확인된 사업이 없습니다.</p>'}<p class="hint">같은 동에 사업이 있어도 이 주택이 해당 구역에 포함되는 것은 아닙니다.</p></details></div>
+    <h4>실제 매물·단지 확인</h4><div class="links">${externalLinks(it)}
+    </div>`;
+  detail.setAttribute('aria-labelledby','detailTitle'); detail.classList.add('open'); detail.scrollTop=0;
+  window.InvestmentScenario?.render(it, f, detail.querySelector('#investmentScenario'));
+  setFull(fullOpen);
+  detail.querySelector('.close').onclick = () => select(state.sel, false);
+  detail.querySelector('.expand').onclick = () => setFull(!detail.classList.contains('full'));
+}
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return;
+  if (detail.classList.contains('full')) setFull(false); else if (state.sel) select(state.sel, false); });
+
+// 모바일 조건 패널 접기/펴기 + 접힌 상태 요약
+const rail = $('rail'), railToggle = $('railToggle');
+function openRail(on){ rail.classList.toggle('open', on); railToggle.setAttribute('aria-expanded', on); railToggle.textContent = on ? '닫기' : '자금·조건'; setTimeout(relayout, 60); }
+railToggle.onclick = () => openRail(!rail.classList.contains('open'));
+$('toggleMap').onclick = () => {
+  const wrapper=document.querySelector('.mapwrap');
+  const open=wrapper.classList.toggle('mobile-map-open');
+  $('toggleMap').setAttribute('aria-expanded',String(open));
+  $('toggleMap').textContent=open?'지도 접기':'지도 펼치기';
+  requestAnimationFrame(()=>{window.dispatchEvent(new Event('resize'));if(open)fit();});
+};
+function railSummary(list){
+  const bits = [];
+  bits.push(P.cash != null ? `현금 ${won(P.cash)}` : '자금 미입력');
+  bits.push(state.firstTime ? '생애최초' : '비생애최초');
+  bits.push(state.commuteMax?`잠실 통근분류 ${state.commuteMax===1?'1':'1·2'}`:'통근권 전체');
+  bits.push(state.regions.size === DATA.regions.length ? '전 지역' : `${state.regions.size}권역`);
+  if (placeTerms(state.place).length) bits.push(`이름 «${placeTerms(state.place).join(', ')}»`);
+  bits.push([...state.kinds].join('·') || '유형 없음');
+  bits.push(`${state.pmin ? won(state.pmin) : '0'}~${won(state.pmax)}`);
+  $('railSummary').textContent = bits.join(' · ') + ` → ${list.length}곳`;
+}
+function update(){
+  const list = filtered();
+  renderList(list);
+  drawMarkers(list);
+  railSummary(list);
+  updateListSummary(list);
+  window.Observations?.render(DATA, ITEMS, P, state, $('observedListings'));
+}
+applyProfile(loadProfile());
+syncControls();
+renderSourceStatus();
+search(false);
+initialFit(0);
+setTimeout(() => initialFit(0), 400);   // 글꼴이 늦게 와서 레이아웃이 밀리는 경우 대비
+})();
+</script>
+</body>
+</html>

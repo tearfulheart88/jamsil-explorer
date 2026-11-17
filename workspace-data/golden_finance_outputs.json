@@ -1,0 +1,96 @@
+{
+  "purpose": "독립 가상 계산의 대조값. 실제 매물 평가·대출조건 아님.",
+  "modelVersion": "reference-1.0",
+  "currency": "KRW",
+  "toleranceKrw": 1,
+  "examples": {
+    "npv_fast": {
+      "cashflowsMonthKrw": [
+        [
+          0,
+          -1000000000
+        ],
+        [
+          36,
+          -300000000
+        ],
+        [
+          60,
+          1700000000
+        ]
+      ],
+      "annualEffectiveRate": 0.06,
+      "npvKrw": 18453108.962606728,
+      "irrAnnual": 0.06353198711371111
+    },
+    "npv_delayed": {
+      "cashflowsMonthKrw": [
+        [
+          0,
+          -1000000000
+        ],
+        [
+          60,
+          -300000000
+        ],
+        [
+          120,
+          1700000000
+        ]
+      ],
+      "annualEffectiveRate": 0.06,
+      "npvKrw": -274906331.1041162,
+      "irrAnnual": 0.030562047446042073
+    },
+    "closing": {
+      "priceKrw": 1000000000,
+      "costKrw": 10000000,
+      "loanKrw": 400000000,
+      "depositCreditKrw": 300000000,
+      "equityKrw": 310000000
+    },
+    "liquidity": {
+      "final_cash_krw": -86000000,
+      "minimum_cash_krw": -86000000,
+      "maximum_reserve_shortfall_krw": 136000000,
+      "maximum_zero_cash_shortfall_krw": 86000000,
+      "vulnerable_day": "2027-10-01",
+      "conservative_order_days": [],
+      "trace": [
+        {
+          "event_id": "close",
+          "day": "2026-10-01",
+          "balance_krw": 190000000,
+          "reserve_shortfall_krw": 0
+        },
+        {
+          "event_id": "net-savings",
+          "day": "2027-09-30",
+          "balance_krw": 214000000,
+          "reserve_shortfall_krw": 0
+        },
+        {
+          "event_id": "deposit-return",
+          "day": "2027-10-01",
+          "balance_krw": -86000000,
+          "reserve_shortfall_krw": 136000000
+        }
+      ]
+    },
+    "far": {
+      "far_counted_area_sqm": 120000,
+      "residual_same_basis_sqm": 20000
+    },
+    "contribution": {
+      "right_value_krw": 440000000.00000006,
+      "contribution_krw": 359999999.99999994,
+      "status": "illustrative_estimate"
+    },
+    "loan": {
+      "principalKrw": 300000000,
+      "annualNominalRate": 0.04,
+      "months": 360,
+      "unroundedMonthlyPaymentKrw": 1432245.8863963785
+    }
+  }
+}

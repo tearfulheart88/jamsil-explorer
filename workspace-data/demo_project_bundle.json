@@ -1,0 +1,229 @@
+{
+  "schemaVersion": "1.0",
+  "snapshotId": "demo-snapshot-001",
+  "dataMode": "demo",
+  "generatedAt": "2026-09-10T12:00:00Z",
+  "projects": [
+    {
+      "id": "demo-project-a",
+      "isDemo": true,
+      "name": "가상 한빛 정비사업",
+      "projectType": "reconstruction",
+      "supportPrograms": [],
+      "deliveryModel": "association",
+      "jurisdictionCode": "DEMO",
+      "eventIds": [
+        "demo-project-event-a"
+      ],
+      "planVersionIds": [
+        "demo-plan-a-1"
+      ],
+      "claimIds": [
+        "demo-claim-project-stage",
+        "demo-claim-project-land_basis",
+        "demo-claim-project-planned_far",
+        "demo-claim-project-member_area",
+        "demo-claim-project-other_area"
+      ],
+      "observedStage": "association_established",
+      "stageLabel": "조합설립 단계 · 가상 시나리오",
+      "stageClaimId": "demo-claim-project-stage",
+      "nextConditions": [
+        {
+          "text": "사업시행 계획과 비용자료 추가 확인",
+          "claimIds": [],
+          "status": "unknown"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "demo-project-event-a",
+      "isDemo": true,
+      "projectId": "demo-project-a",
+      "eventType": "association_established",
+      "label": "조합설립 예시 사건",
+      "occurredOn": "2026-09-01",
+      "publishedOn": "2026-09-01",
+      "effectiveFrom": "2026-09-01",
+      "recordedAt": "2026-09-10T12:00:00Z",
+      "status": "valid",
+      "claimId": "demo-claim-project-stage",
+      "evidenceIds": [
+        "demo-evidence-project-a"
+      ],
+      "supersedes": null
+    }
+  ],
+  "plans": [
+    {
+      "id": "demo-plan-a-1",
+      "isDemo": true,
+      "projectId": "demo-project-a",
+      "versionLabel": "예시 v1",
+      "status": "proposed",
+      "asOf": "2026-09-01",
+      "areaBasisClaimId": "demo-claim-project-land_basis",
+      "plannedFarClaimId": "demo-claim-project-planned_far",
+      "memberAreaClaimId": "demo-claim-project-member_area",
+      "otherAreaClaimId": "demo-claim-project-other_area",
+      "totalCostClaimId": null,
+      "completionTargetClaimId": null,
+      "claimIds": [
+        "demo-claim-project-land_basis",
+        "demo-claim-project-planned_far",
+        "demo-claim-project-member_area",
+        "demo-claim-project-other_area"
+      ],
+      "evidenceIds": [
+        "demo-evidence-project-a"
+      ]
+    }
+  ],
+  "membershipLinks": [
+    {
+      "id": "demo-link-a",
+      "isDemo": true,
+      "propertyId": "demo-property-a",
+      "projectId": "demo-project-a",
+      "relation": "unknown",
+      "method": "none",
+      "overlapRatio": null,
+      "reviewStatus": "pending",
+      "evidenceIds": [],
+      "limitation": "관련 사업을 연결한 예시일 뿐, 구역 편입·분양자격은 확인되지 않았습니다."
+    }
+  ],
+  "claims": [
+    {
+      "id": "demo-claim-project-stage",
+      "isDemo": true,
+      "subjectId": "demo-project-a",
+      "predicate": "stage",
+      "value": "association_established",
+      "unit": "stage",
+      "state": "confirmed",
+      "evidence": [
+        {
+          "evidenceId": "demo-evidence-project-a",
+          "relation": "supports",
+          "scopeNote": "가상 예시 내부의 사업 단계만 지지"
+        }
+      ],
+      "assumptionIds": [],
+      "calculationId": null,
+      "validFrom": "2026-09-01",
+      "validTo": null,
+      "limitation": "합성 검수자료. 현실의 확인된 정보가 아닙니다."
+    },
+    {
+      "id": "demo-claim-project-land_basis",
+      "isDemo": true,
+      "subjectId": "demo-project-a",
+      "predicate": "land_basis",
+      "value": 40000,
+      "unit": "sqm_land",
+      "state": "confirmed",
+      "evidence": [
+        {
+          "evidenceId": "demo-evidence-project-a",
+          "relation": "supports",
+          "scopeNote": "가상 예시 내부의 용적률 산정 대지만 지지"
+        }
+      ],
+      "assumptionIds": [],
+      "calculationId": null,
+      "validFrom": "2026-09-01",
+      "validTo": null,
+      "limitation": "합성 검수자료. 현실의 확인된 정보가 아닙니다."
+    },
+    {
+      "id": "demo-claim-project-planned_far",
+      "isDemo": true,
+      "subjectId": "demo-project-a",
+      "predicate": "planned_far",
+      "value": 3,
+      "unit": "multiple",
+      "state": "confirmed",
+      "evidence": [
+        {
+          "evidenceId": "demo-evidence-project-a",
+          "relation": "supports",
+          "scopeNote": "가상 예시 내부의 용적률 300% 가정만 지지"
+        }
+      ],
+      "assumptionIds": [],
+      "calculationId": null,
+      "validFrom": "2026-09-01",
+      "validTo": null,
+      "limitation": "합성 검수자료. 현실의 확인된 정보가 아닙니다."
+    },
+    {
+      "id": "demo-claim-project-member_area",
+      "isDemo": true,
+      "subjectId": "demo-project-a",
+      "predicate": "member_area",
+      "value": 80000,
+      "unit": "sqm_far_counted",
+      "state": "confirmed",
+      "evidence": [
+        {
+          "evidenceId": "demo-evidence-project-a",
+          "relation": "supports",
+          "scopeNote": "가상 예시 내부의 조합원 배정 면적만 지지"
+        }
+      ],
+      "assumptionIds": [],
+      "calculationId": null,
+      "validFrom": "2026-09-01",
+      "validTo": null,
+      "limitation": "합성 검수자료. 현실의 확인된 정보가 아닙니다."
+    },
+    {
+      "id": "demo-claim-project-other_area",
+      "isDemo": true,
+      "subjectId": "demo-project-a",
+      "predicate": "other_area",
+      "value": 20000,
+      "unit": "sqm_far_counted",
+      "state": "confirmed",
+      "evidence": [
+        {
+          "evidenceId": "demo-evidence-project-a",
+          "relation": "supports",
+          "scopeNote": "가상 예시 내부의 기타 배정 면적만 지지"
+        }
+      ],
+      "assumptionIds": [],
+      "calculationId": null,
+      "validFrom": "2026-09-01",
+      "validTo": null,
+      "limitation": "합성 검수자료. 현실의 확인된 정보가 아닙니다."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "demo-evidence-project-a",
+      "isDemo": true,
+      "sourceRegistryId": null,
+      "authority": "demo",
+      "issuer": "가상 자료 작성자",
+      "publisher": "개발 검수용 합성 자료",
+      "title": "가상 한빛 정비사업 예시 기록",
+      "url": null,
+      "accessScope": "local_demo",
+      "publishedOn": "2026-09-01",
+      "observedOn": "2026-09-01",
+      "checkedAt": "2026-09-10T12:00:00Z",
+      "effectiveFrom": null,
+      "effectiveTo": null,
+      "locator": {
+        "kind": "local_demo",
+        "label": "fixtures/DEMO_NOTES.md / 정비사업 예시"
+      },
+      "excerpt": "실제 사업·고시가 아닙니다. 가상 예시의 단계와 면적 표시를 검사합니다.",
+      "contentHash": null
+    }
+  ]
+}
