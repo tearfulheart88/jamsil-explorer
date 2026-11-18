@@ -71,21 +71,22 @@
   // 순위: 내 돈으로 못 사는 집·필수 조건에 안 맞는 집은 빼고, 판정 → 가격 위치 → 거래 수 순.
   function rank(rows, { sort = 'position' } = {}) {
     const out = [], excluded = { unaffordable: 0, notfit: 0, nodata: 0 };
-    let budgetUnknown = 0;
+    let budgetUnknown = 0, inputMissing = 0;
+    const INPUT = /소득|부채|현금|예비비|생애최초|무주택|주택 보유/;
     for (const r of rows || []) {
       const buy = summary(r.buy);
       if (!buy) { excluded.nodata++; continue; }
       const status = r.loan?.screen?.status;
       if (status === 'not_possible') { excluded.unaffordable++; continue; }
       if (r.fit === 'NOT_FIT') { excluded.notfit++; continue; }
-      if (status !== 'possible') budgetUnknown++;
+      if (status !== 'possible') { budgetUnknown++; if (!r.loan?.ok || (r.loan.screen?.missing || []).some(m => INPUT.test(m))) inputMissing++; }
       out.push({ ...r, buy, verdict: verdict(buy, r.property ? kindKey(r.property) : r.kind), affordable: status === 'possible' });
     }
     const pos = r => r.buy.position?.pct ?? 1.5, cash = r => r.loan?.cash?.neededKrw ?? Infinity, monthly = r => r.loan?.monthly?.paymentKrw ?? Infinity;
     const byPosition = (a, b) => a.verdict.order - b.verdict.order || pos(a) - pos(b) || (b.buy.n12 || 0) - (a.buy.n12 || 0);
     const cmp = { position: byPosition, cash: (a, b) => cash(a) - cash(b) || byPosition(a, b), monthly: (a, b) => monthly(a) - monthly(b) || byPosition(a, b), area: (a, b) => (b.buy.area || 0) - (a.buy.area || 0) || byPosition(a, b) };
     out.sort(cmp[sort] || byPosition);
-    return { rows: out, excluded, budgetUnknown };
+    return { rows: out, excluded, budgetUnknown, inputMissing };
   }
 
   // 가격 위치를 만든 사실들을 사람 말로.
@@ -213,7 +214,7 @@
   function resultHtml(ui, all, limit) {
     const ranked = rank(filtered(all), { sort: view.sort }), rows = ranked.rows, first = rows.filter(r => r.verdict.key === 'first').length, vfirst = rows.filter(r => r.verdict.key === 'vfirst').length;
     const ex = ranked.excluded, cashKnown = root.WorkspaceLoanEstimate?.cashKnown?.(ui.state.profile);
-    const head = `<p class="best-count"><strong>${rows.length.toLocaleString('ko-KR')}곳</strong> 중 계약 검토 1순위 <strong>${first.toLocaleString('ko-KR')}곳</strong>${vfirst ? ` · 빌라 후보 ${vfirst.toLocaleString('ko-KR')}곳` : ''}${cashKnown ? ` · 내 돈으로 못 사 제외 ${ex.unaffordable.toLocaleString('ko-KR')}곳` : ''}${ex.notfit ? ` · 필수 조건 불일치 제외 ${ex.notfit.toLocaleString('ko-KR')}곳` : ''}${ex.nodata ? ` · 시세 추정 불가 ${ex.nodata.toLocaleString('ko-KR')}곳` : ''}</p>${cashKnown && ranked.budgetUnknown ? `<p class="help">예산 입력이 덜 돼(연소득·빚·생애최초 여부) 살 수 있는지 확정하지 못한 집 ${ranked.budgetUnknown.toLocaleString('ko-KR')}곳이 섞여 있습니다.</p>` : ''}`;
+    const head = `<p class="best-count"><strong>${rows.length.toLocaleString('ko-KR')}곳</strong> 중 계약 검토 1순위 <strong>${first.toLocaleString('ko-KR')}곳</strong>${vfirst ? ` · 빌라 후보 ${vfirst.toLocaleString('ko-KR')}곳` : ''}${cashKnown ? ` · 내 돈으로 못 사 제외 ${ex.unaffordable.toLocaleString('ko-KR')}곳` : ''}${ex.notfit ? ` · 필수 조건 불일치 제외 ${ex.notfit.toLocaleString('ko-KR')}곳` : ''}${ex.nodata ? ` · 시세 추정 불가 ${ex.nodata.toLocaleString('ko-KR')}곳` : ''}</p>${cashKnown && ranked.inputMissing ? `<p class="help">예산 입력이 덜 돼(연소득·빚·생애최초 여부) 살 수 있는지 확정하지 못한 집 ${ranked.inputMissing.toLocaleString('ko-KR')}곳이 섞여 있습니다.</p>` : cashKnown && ranked.budgetUnknown ? `<p class="help">지역 규제·부대비용 자료가 없어 살 수 있는지 확정하지 못한 집 ${ranked.budgetUnknown.toLocaleString('ko-KR')}곳이 섞여 있습니다(예산 입력 문제는 아닙니다).</p>` : ''}`;
     if (!rows.length) return { rows, html: `${head}<div class="panel empty"><h2>조건에 맞는 집이 없습니다.</h2><p>지역·면적 조건을 넓히거나 예산을 확인해 보세요.</p></div>` };
     return { rows, html: `${head}<div class="best-list">${rows.slice(0, limit).map((r, i) => rowCard(ui, r, i)).join('')}</div>${rows.length > limit ? `<div class="actions" style="justify-content:center;margin-top:18px"><button data-best-more>다음 ${Math.min(12, rows.length - limit)}곳 더 보기 (${limit.toLocaleString('ko-KR')} / ${rows.length.toLocaleString('ko-KR')})</button></div>` : ''}` };
   }
